@@ -3908,6 +3908,14 @@ export default function App() {
   const [setEndData, setSetEndData] = useState(null);
 
   const [leftWidth, setLeftWidth] = useState(380);
+  const [isActionLocked, setIsActionLocked] = useState(false);
+
+  const triggerActionLock = () => {
+    setIsActionLocked(true);
+    setTimeout(() => {
+      setIsActionLocked(false);
+    }, 400);
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -4327,6 +4335,7 @@ export default function App() {
   };
 
   const handleUpdateScore = (team, increment) => {
+    triggerActionLock();
     if (setEndData) return;
     if (increment > 0 && matchData.tempRallyEvents && matchData.tempRallyEvents.length > 0) {
       handleCommitRally(team);
@@ -4488,20 +4497,34 @@ export default function App() {
   };
 
   const handleAddToTempRally = (eventData) => {
+    triggerActionLock();
     const newTempEvent = {
       id: Date.now().toString(),
       timestamp: Date.now(),
       set: matchData.score.set,
       ...eventData
     };
-    const nextState = {
-      ...matchData,
-      tempRallyEvents: [...(matchData.tempRallyEvents || []), newTempEvent]
-    };
-    syncMatchState(nextState);
+
+    // Check if evaluation ends the rally (point-winning/losing evaluation)
+    const isRallyEnd = eventData.eval === '#' || eventData.eval === '=' || eventData.eval === '/';
+
+    if (isRallyEnd) {
+      const winningTeam = eventData.eval === '#' 
+        ? eventData.team 
+        : (eventData.team === 'home' ? 'away' : 'home');
+      
+      handleCommitRallyWithEvents([...(matchData.tempRallyEvents || []), newTempEvent], winningTeam);
+    } else {
+      const nextState = {
+        ...matchData,
+        tempRallyEvents: [...(matchData.tempRallyEvents || []), newTempEvent]
+      };
+      syncMatchState(nextState);
+    }
   };
 
   const handleClearTempRally = () => {
+    triggerActionLock();
     const nextState = {
       ...matchData,
       tempRallyEvents: []
@@ -4510,8 +4533,12 @@ export default function App() {
   };
 
   const handleCommitRally = (winningTeam) => {
+    triggerActionLock();
+    handleCommitRallyWithEvents(matchData.tempRallyEvents || [], winningTeam);
+  };
+
+  const handleCommitRallyWithEvents = (rallyEvents, winningTeam) => {
     if (setEndData) return;
-    const rallyEvents = matchData.tempRallyEvents || [];
     const scoreText = `[${matchData.score.home}-${matchData.score.away}]`;
     const sZoneHome = getSetterZone(matchData.rotations.home, matchData.roster.home);
     const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
@@ -4597,6 +4624,7 @@ export default function App() {
   };
 
   const handleUndoLastEvent = () => {
+    triggerActionLock();
     if (matchData.tempRallyEvents && matchData.tempRallyEvents.length > 0) {
       const nextState = {
         ...matchData,
@@ -4607,18 +4635,35 @@ export default function App() {
     }
 
     if (matchData.events && matchData.events.length > 0) {
-      const teamEvents = matchData.events.filter(e => role === ROLES.COACH || e.team === role);
-      if (teamEvents.length === 0) return;
-      
-      const lastEvent = teamEvents[teamEvents.length - 1];
+      const lastEvent = matchData.events[matchData.events.length - 1];
       
       let nextScore = { ...matchData.score };
       let nextRotations = { ...matchData.rotations };
       let nextRoster = { ...matchData.roster };
       let nextSwaps = { ...matchData.liberoSwaps };
+      let nextServe = matchData.currentServe;
 
       if (lastEvent.pointWonBy) {
-        nextScore[lastEvent.pointWonBy] = Math.max(0, nextScore[lastEvent.pointWonBy] - 1);
+        const winner = lastEvent.pointWonBy;
+        nextScore[winner] = Math.max(0, nextScore[winner] - 1);
+        
+        let prevServe = null;
+        for (let i = matchData.events.length - 2; i >= 0; i--) {
+          const evt = matchData.events[i];
+          if (evt.pointWonBy) {
+            prevServe = evt.pointWonBy;
+            break;
+          }
+        }
+        
+        if (prevServe && prevServe !== winner) {
+          const currentRot = [...nextRotations[winner]];
+          nextRotations[winner] = [
+            currentRot[5], currentRot[0], currentRot[1],
+            currentRot[2], currentRot[3], currentRot[4]
+          ];
+        }
+        nextServe = prevServe;
       }
 
       if (lastEvent.skill === 'libero_swap') {
@@ -4648,6 +4693,7 @@ export default function App() {
         rotations: nextRotations,
         roster: nextRoster,
         liberoSwaps: nextSwaps,
+        currentServe: nextServe,
         events: matchData.events.filter(e => e.id !== lastEvent.id)
       };
       syncMatchState(nextState);
@@ -4677,6 +4723,7 @@ export default function App() {
   };
 
   const handleTimeout = (team) => {
+    triggerActionLock();
     const currentTO = matchData.timeouts?.[team] || 0;
     if (currentTO >= 2) return; 
 
@@ -4735,6 +4782,7 @@ export default function App() {
   };
 
   const handleSubstitution = (team, targetNum, subNum) => {
+    triggerActionLock();
     const updatedRot = matchData.rotations[team].map(num => num === targetNum ? subNum : num);
     const updatedRoster = { ...matchData.roster[team] };
     if (updatedRoster[targetNum]) updatedRoster[targetNum].isStarter = false;
@@ -4776,6 +4824,7 @@ export default function App() {
   };
 
   const handleLiberoQuickSwap = (team, zoneId) => {
+    triggerActionLock();
     const teamRoster = matchData.roster[team] || {};
     const liberoEntry = Object.entries(teamRoster).find(([_, details]) => (details as any).position === 'L');
     if (!liberoEntry) {
@@ -4847,6 +4896,7 @@ export default function App() {
   };
 
   const handleFoul = (team, foulType) => {
+    triggerActionLock();
     const sZoneHome = getSetterZone(matchData.rotations.home, matchData.roster.home);
     const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
     const opponent = team === 'home' ? 'away' : 'home';
@@ -5546,7 +5596,7 @@ export default function App() {
         {role === ROLES.UNASSIGNED ? (
           <RoleSelection onSelect={setRole} />
         ) : (
-          <div className="flex flex-col md:flex-row w-full h-full gap-1 md:gap-0 overflow-hidden">
+          <div className={`flex flex-col md:flex-row w-full h-full gap-1 md:gap-0 overflow-hidden transition-all duration-150 ${isActionLocked ? 'pointer-events-none opacity-60 cursor-not-allowed select-none' : ''}`}>
             {/* Dashboard / Stats layout */}
             <div 
               className={`flex flex-col gap-2 h-full min-h-0 shrink-0
