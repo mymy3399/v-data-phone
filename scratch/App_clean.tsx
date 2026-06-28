@@ -4,7 +4,7 @@ import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './t
 import { 
   ClipboardList, MonitorPlay, Check, X, Undo2, Settings, 
   Users, RotateCcw, AlertCircle, BarChart3, Swords, LogIn, Plus, Copy, CloudLightning, Download, BookOpen, ChevronRight, Link2, Trophy, PlayCircle, ChevronLeft,
-  Activity, Lock, Unlock, Trash2, Calendar, KeyRound, UserPlus, Sliders, LayoutGrid, List, MapPin
+  Activity, Lock, Unlock, Trash2, Calendar, KeyRound, UserPlus, Sliders, LayoutGrid, List
 } from 'lucide-react';
 
 const LanguageContext = createContext<{ lang: 'th' | 'en'; setLang: (l: 'th' | 'en') => void }>({
@@ -61,15 +61,6 @@ const POSITIONS = ['S', 'OH', 'OP', 'MB', 'L'];
 const INITIAL_MATCH_STATE = {
   status: 'ongoing',
   teamNames: { home: "HOME", away: "AWAY" },
-  matchInfo: {
-    tournament: '',
-    venue: '',
-    matchDate: '',
-    matchTime: '',
-    gender: '',
-    ageGroup: '',
-    compLevel: 'general'
-  },
   score: { home: 0, away: 0, set: 1 },
   setsWon: { home: 0, away: 0 },
   timeouts: { home: 0, away: 0 },
@@ -102,7 +93,6 @@ const INITIAL_MATCH_STATE = {
   },
   tempRallyEvents: [], 
   events: [],
-  setScores: [],
   liberoSwaps: { home: {}, away: {} }
 };
 
@@ -2612,7 +2602,7 @@ function HelpGuideModal({ onClose }) {
   );
 }
 
-function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNames, currentMatchInfo, onSave, onClose }) {
+function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNames, onSave, onClose }) {
   const { lang } = useContext(LanguageContext);
   const t = (key: string) => (translations[lang] as any)[key] || (translations['th'] as any)[key] || key;
 
@@ -2621,15 +2611,6 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
   const [teamNames, setTeamNames] = useState({ 
     home: currentTeamNames?.home || "HOME", 
     away: currentTeamNames?.away || "AWAY" 
-  });
-  const [matchInfo, setMatchInfo] = useState({
-    tournament: currentMatchInfo?.tournament || '',
-    venue: currentMatchInfo?.venue || '',
-    matchDate: currentMatchInfo?.matchDate || '',
-    matchTime: currentMatchInfo?.matchTime || '',
-    gender: currentMatchInfo?.gender || '',
-    ageGroup: currentMatchInfo?.ageGroup || '',
-    compLevel: currentMatchInfo?.compLevel || 'general'
   });
 
   const [newSubNum, setNewSubNum] = useState('');
@@ -2678,7 +2659,7 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
   };
 
   const handleSave = () => {
-    onSave(lineup, roster, teamNames, matchInfo);
+    onSave(lineup, roster, teamNames);
   };
 
   const substitutes = Object.entries(roster as Record<string, any>).filter(([_, details]) => !details.isStarter);
@@ -2695,94 +2676,6 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
         
         <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto custom-scrollbar flex-1 min-h-0">
            <div className="flex flex-col gap-3">
-             <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-inner">
-                <span className="text-[10px] text-slate-300 font-extrabold uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                  <Trophy className="w-3.5 h-3.5 text-amber-500" /> {t('matchInfoSection')}
-                </span>
-                <div className="flex flex-col gap-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[9px] text-slate-400 block mb-1">{t('tournamentLabel')}</label>
-                      <input 
-                        type="text" 
-                        value={matchInfo.tournament}
-                        placeholder={t('tournamentPlaceholder')}
-                        onChange={(e) => setMatchInfo(prev => ({ ...prev, tournament: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-[11px] font-bold text-slate-200 outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-slate-400 block mb-1">{t('venueLabel')}</label>
-                      <input 
-                        type="text" 
-                        value={matchInfo.venue}
-                        placeholder={t('venuePlaceholder')}
-                        onChange={(e) => setMatchInfo(prev => ({ ...prev, venue: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-[11px] font-bold text-slate-200 outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-[9px] text-slate-400 block mb-1">{t('matchDateLabel')}</label>
-                      <input 
-                        type="date" 
-                        value={matchInfo.matchDate}
-                        onChange={(e) => setMatchInfo(prev => ({ ...prev, matchDate: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-[11px] font-bold text-slate-200 outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-slate-400 block mb-1">{t('matchTimeLabel')}</label>
-                      <input 
-                        type="time" 
-                        value={matchInfo.matchTime}
-                        onChange={(e) => setMatchInfo(prev => ({ ...prev, matchTime: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-[11px] font-bold text-slate-200 outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-slate-400 block mb-1">{t('ageGroupLabel')}</label>
-                      <input 
-                        type="text" 
-                        value={matchInfo.ageGroup}
-                        placeholder={t('ageGroupPlaceholder')}
-                        onChange={(e) => setMatchInfo(prev => ({ ...prev, ageGroup: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-[11px] font-bold text-slate-200 outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[9px] text-slate-400 block mb-1">{t('genderLabel')}</label>
-                      <select 
-                        value={matchInfo.gender}
-                        onChange={(e) => setMatchInfo(prev => ({ ...prev, gender: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-[11px] font-bold text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                      >
-                        <option value="">-- {lang === 'en' ? 'Select Gender' : 'เลือกเพศ'} --</option>
-                        <option value="male">{t('genderMale')}</option>
-                        <option value="female">{t('genderFemale')}</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-slate-400 block mb-1">{t('compLevelLabel')}</label>
-                      <select 
-                        value={matchInfo.compLevel}
-                        onChange={(e) => setMatchInfo(prev => ({ ...prev, compLevel: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-[11px] font-bold text-slate-200 outline-none focus:border-indigo-500 text-xs"
-                      >
-                        <option value="highschool">{t('levelHighSchool')}</option>
-                        <option value="university">{t('levelUniversity')}</option>
-                        <option value="general">{t('levelGeneral')}</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-             </div>
-
              <div className="bg-slate-800 p-3 rounded-xl border border-slate-700 shadow-inner">
                 <span className="text-[10px] text-slate-300 font-extrabold uppercase tracking-wider flex items-center gap-1 mb-2">
                   <Settings className="w-3.5 h-3.5" /> {t('teamNamesSection')}
@@ -3456,11 +3349,9 @@ function TrackerView({
       )}
     </div>
   );
-}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [] }) {
+}function Dashboard({ events, rotations, roster, role, teamNames, timeouts }) {
   const { lang } = useContext(LanguageContext);
   const [activeTab, setActiveTab] = useState<'summary' | 'heatmap' | 'rotation' | 'logs'>('summary');
-  const [selectedSet, setSelectedSet] = useState<number | 'all'>('all');
-
   const t = (key: string, params?: Record<string, string | number>) => {
     let val = (translations[lang] as any)[key] || (translations['th'] as any)[key] || key;
     if (params) {
@@ -3471,13 +3362,8 @@ function TrackerView({
     return val;
   };
 
-  const filteredEvents = useMemo(() => {
-    if (selectedSet === 'all') return events;
-    return events.filter(e => e.set === selectedSet);
-  }, [events, selectedSet]);
-
   const calculateStats = (team) => {
-    const teamEvents = filteredEvents.filter(e => e.team === team);
+    const teamEvents = events.filter(e => e.team === team);
     
     const results = {};
     SKILLS.forEach(skill => {
@@ -3504,8 +3390,8 @@ function TrackerView({
     return results;
   };
 
-  const homeStats = useMemo(() => calculateStats(ROLES.HOME), [filteredEvents]);
-  const awayStats = useMemo(() => calculateStats(ROLES.AWAY), [filteredEvents]);
+  const homeStats = useMemo(() => calculateStats(ROLES.HOME), [events]);
+  const awayStats = useMemo(() => calculateStats(ROLES.AWAY), [events]);
 
   const zoneDistribution = useMemo(() => {
     const data = {
@@ -3513,7 +3399,7 @@ function TrackerView({
       away: { strengths: Array(7).fill(0), weaknesses: Array(7).fill(0) }
     };
 
-    filteredEvents.forEach(evt => {
+    events.forEach(evt => {
       if (!evt.endZone || evt.endZone < 1 || evt.endZone > 6) return;
       
       const isSuccess = evt.eval === '#' || evt.eval === '+';
@@ -3529,7 +3415,7 @@ function TrackerView({
     });
 
     return data;
-  }, [filteredEvents]);
+  }, [events]);
 
   const showHome = role === ROLES.HOME || role === ROLES.COACH;
   const showAway = role === ROLES.AWAY || role === ROLES.COACH;
@@ -3679,7 +3565,7 @@ function TrackerView({
              <div className="flex-1 min-w-0">
                <RotationAnalysisView 
                  team="home" 
-                 events={filteredEvents} 
+                 events={events} 
                  teamName={teamNames.home} 
                  isHome={true}
                />
@@ -3689,7 +3575,7 @@ function TrackerView({
              <div className="flex-1 min-w-0">
                <RotationAnalysisView 
                  team="away" 
-                 events={filteredEvents} 
+                 events={events} 
                  teamName={teamNames.away} 
                  isHome={false}
                />
@@ -3705,13 +3591,13 @@ function TrackerView({
             <ClipboardList className="w-4 h-4 text-amber-500" /> {t('liveLogsTitle')}
           </h3>
           <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1 mt-1.5">
-            {filteredEvents.length === 0 ? (
+            {events.length === 0 ? (
               <div className="text-slate-500 text-xs text-center py-8 flex flex-col items-center gap-2">
                  <Activity className="w-6 h-6 opacity-40" />
                  <span>{t('noStatsLogged')}</span>
               </div>
             ) : (
-              [...filteredEvents].reverse().map(evt => (
+              [...events].reverse().map(evt => (
                 <div key={evt.id} className="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg text-[10px] border border-slate-800 shadow-sm mb-0.5 hover:border-slate-600 transition-colors">
                   <div className="flex items-center gap-2 truncate">
                     <span className={`w-1.5 h-4 shrink-0 rounded-full ${evt.team === 'home' ? 'bg-indigo-500' : 'bg-rose-500'}`}></span>
@@ -4247,25 +4133,16 @@ export default function App() {
         currentServe: null,
         events: [],
         tempRallyEvents: [],
-        timeouts: { home: 0, away: 0 },
-        setScores: []
+        timeouts: { home: 0, away: 0 }
       };
     } else {
-      const completedSetScore = {
-        setNum: matchData.score.set,
-        home: matchData.score.home,
-        away: matchData.score.away,
-        winner
-      };
-      const newSetScores = [...(matchData.setScores || []), completedSetScore];
       nextState = {
         ...matchData,
         score: { home: 0, away: 0, set: matchData.score.set + 1 },
         setsWon: newSetsWon,
         currentServe: null,
         tempRallyEvents: [],
-        timeouts: { home: 0, away: 0 },
-        setScores: newSetScores
+        timeouts: { home: 0, away: 0 }
       };
     }
     syncMatchState(nextState);
@@ -4277,14 +4154,6 @@ export default function App() {
     newSetsWon[winner] += 1;
     const isMatchOver = newSetsWon[winner] >= 3;
 
-    const completedSetScore = {
-      setNum: matchData.score.set,
-      home: matchData.score.home,
-      away: matchData.score.away,
-      winner
-    };
-    const newSetScores = [...(matchData.setScores || []), completedSetScore];
-
     const nextState = {
       ...matchData,
       status: isMatchOver ? 'finished' : 'ongoing',
@@ -4292,8 +4161,7 @@ export default function App() {
       setsWon: newSetsWon,
       currentServe: null,
       tempRallyEvents: [],
-      timeouts: { home: 0, away: 0 },
-      setScores: newSetScores
+      timeouts: { home: 0, away: 0 }
     };
     syncMatchState(nextState);
     alert(lang === 'en' ? `Set over! Team ${matchData.teamNames[winner]} won set ${matchData.score.set}` : `จบเซต! ทีม ${matchData.teamNames[winner]} ชนะเซตที่ ${matchData.score.set}`);
@@ -4341,7 +4209,6 @@ export default function App() {
     const newTempEvent = {
       id: Date.now().toString(),
       timestamp: Date.now(),
-      set: matchData.score.set,
       ...eventData
     };
     const nextState = {
@@ -4379,8 +4246,7 @@ export default function App() {
         skill: "point",
         eval: "#",
         detail: lang === 'en' ? `Point won by ${matchData.teamNames[winningTeam]}` : `ได้แต้มโดยทีม ${matchData.teamNames[winningTeam]}`,
-        pointWonBy: winningTeam,
-        set: matchData.score.set
+        pointWonBy: winningTeam
       }];
     } else {
       finalEventsToCommit = rallyEvents.map((evt, idx) => {
@@ -4390,7 +4256,6 @@ export default function App() {
           scoreAt: scoreText,
           setterZoneHome: sZoneHome,
           setterZoneAway: sZoneAway,
-          set: evt.set || matchData.score.set,
           ...(isLast ? { pointWonBy: winningTeam } : {})
         };
       });
@@ -4435,7 +4300,6 @@ export default function App() {
       scoreAt: `[${matchData.score.home}-${matchData.score.away}]`,
       setterZoneHome: sZoneHome,
       setterZoneAway: sZoneAway,
-      set: matchData.score.set,
       ...eventData
     };
 
@@ -4504,7 +4368,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateRoster = (team, newRotations, newRoster, customNames = null, newMatchInfo = null) => {
+  const handleUpdateRoster = (team, newRotations, newRoster, customNames = null) => {
     const nextState = {
       ...matchData,
       rotations: {
@@ -4518,9 +4382,6 @@ export default function App() {
     };
     if (customNames) {
       nextState.teamNames = customNames;
-    }
-    if (newMatchInfo) {
-      nextState.matchInfo = newMatchInfo;
     }
     syncMatchState(nextState);
     setIsSetupModalOpen(false);
@@ -4938,31 +4799,30 @@ export default function App() {
       });
 
       return `
-        <div style="
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-          margin-top: 15px;
-        ">
-          \${courtsHtml}
-        </div>
-      `;
-    };
-
-    const homeName = matchData.teamNames?.home || "HOME";
-    const awayName = matchData.teamNames?.away || "AWAY";
-
-    const printContent = `
-      <html>
-      <head>
-        <title>V Project (beta) - Detailed Scout Report [\${activeRoom}]</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
-          body { font-family: 'Inter', Arial, sans-serif; padding: 30px; color: #0f172a; line-height: 1.6; background: #fff; }
-          .header { border-bottom: 3px solid #334155; padding-bottom: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
-          .logo { font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -1px; }
-          .logo span { color: #f59e0b; font-size: 14px; vertical-align: super; }
-          .match-meta { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 35px; border: 1px solid #e2e8f0; }
+                      <TrackerView 
+                    status={matchData.status}
+                    onManualEndSet={handleManualEndSet}
+                    onManualEndMatch={handleManualEndMatch}
+                    onResumeMatch={handleResumeMatch}
+                    role={role} 
+                    score={matchData.score}
+                    teamNames={matchData.teamNames || { home: "HOME", away: "AWAY" }}
+                    rotations={matchData.rotations} 
+                    roster={matchData.roster}
+                    tempRallyEvents={matchData.tempRallyEvents || []}
+                    timeouts={matchData.timeouts}
+                    currentServe={matchData.currentServe}
+                    onSaveEvent={handleAddToTempRally}
+                    onCommitRally={handleCommitRally}
+                    onClearRally={handleClearTempRally}
+                    onUndo={handleUndoLastEvent}
+                    onFoul={(fType) => handleFoul(role, fType)}
+                    onSubstitution={(target, sub) => handleSubstitution(role, target, sub)}
+                    onManualRotate={() => rotateTeamClockwise(role)}
+                    hasEvents={matchData.events.filter(e => e.team === role).length > 0}
+                    onLiberoQuickSwap={(zoneId) => handleLiberoQuickSwap(role, zoneId)}
+                    liberoSwaps={matchData.liberoSwaps || { home: {}, away: {} }}
+                 />olid #e2e8f0; }
           .score-card { font-size: 42px; font-weight: 900; letter-spacing: -1px; text-align: center; margin: 15px 0; color: #1e293b; }
           
           .section-box { border: 1px solid #cbd5e1; border-radius: 16px; padding: 25px; background: #ffffff; margin-bottom: 40px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
@@ -5263,12 +5123,12 @@ export default function App() {
             </button>
           </div>
 
-          {role !== ROLES.UNASSIGNED && (
+          {role !== ROLES.UNASSIGNED && role !== ROLES.COACH && (
             <button 
               onClick={() => setIsSetupModalOpen(true)}
               className="flex items-center gap-1.5 text-[10px] sm:text-[11px] bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1.5 rounded-lg border border-indigo-500 transition-colors text-white font-bold shadow-md"
             >
-              <Users className="w-3.5 h-3.5 text-indigo-200" /> <span className="hidden xs:inline">{lang === 'en' ? 'Match & Team Setup' : 'ตั้งค่าแมตช์ & ทีม'}</span>
+              <Users className="w-3.5 h-3.5 text-indigo-200" /> <span className="hidden xs:inline">{lang === 'en' ? 'Team Setup' : 'ตั้งค่าทีม'}</span>
             </button>
           )}
 
@@ -5301,72 +5161,6 @@ export default function App() {
         </div>
       )}
 
-      {matchData.matchInfo && (matchData.matchInfo.tournament || matchData.matchInfo.venue || matchData.matchInfo.matchDate) ? (
-        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0 shadow-sm transition-all duration-300">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-slate-300 font-medium">
-            {matchData.matchInfo.tournament ? (
-              <span className="flex items-center gap-1.5 text-indigo-400 font-bold">
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                {matchData.matchInfo.tournament}
-              </span>
-            ) : null}
-            {matchData.matchInfo.venue ? (
-              <span className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                {matchData.matchInfo.venue}
-              </span>
-            ) : null}
-            {(matchData.matchInfo.matchDate || matchData.matchInfo.matchTime) ? (
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                {matchData.matchInfo.matchDate} {matchData.matchInfo.matchTime}
-              </span>
-            ) : null}
-            {matchData.matchInfo.gender ? (
-              <span className="px-2 py-0.5 bg-slate-800 rounded-md border border-slate-700 text-[10px] text-indigo-300 font-bold uppercase">
-                {matchData.matchInfo.gender === 'male' ? t('genderMale') : t('genderFemale')}
-              </span>
-            ) : null}
-            {matchData.matchInfo.compLevel ? (
-              <span className="px-2 py-0.5 bg-slate-800 rounded-md border border-slate-700 text-[10px] text-purple-300 font-bold uppercase">
-                {matchData.matchInfo.compLevel === 'highschool' && t('levelHighSchool')}
-                {matchData.matchInfo.compLevel === 'university' && t('levelUniversity')}
-                {matchData.matchInfo.compLevel === 'general' && t('levelGeneral')}
-              </span>
-            ) : null}
-            {matchData.matchInfo.ageGroup ? (
-              <span className="px-2 py-0.5 bg-slate-800 rounded-md border border-slate-700 text-[10px] text-amber-400 font-bold">
-                {matchData.matchInfo.ageGroup}
-              </span>
-            ) : null}
-          </div>
-          <button 
-            onClick={() => {
-              if (window.confirm(lang === 'en' ? 'Are you sure you want to delete the match information?' : 'คุณแน่ใจหรือไม่ที่จะลบข้อมูลการแข่งขันนี้?')) {
-                const nextState = {
-                  ...matchData,
-                  matchInfo: {
-                    tournament: '',
-                    venue: '',
-                    matchDate: '',
-                    matchTime: '',
-                    gender: '',
-                    ageGroup: '',
-                    compLevel: 'general'
-                  }
-                };
-                syncMatchState(nextState);
-              }
-            }}
-            className="text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 p-1 rounded transition-all active:scale-95 flex items-center gap-1 text-[11px]"
-            title={lang === 'en' ? 'Delete match info' : 'ลบข้อมูลการแข่งขัน'}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{lang === 'en' ? 'Clear' : 'ลบข้อมูล'}</span>
-          </button>
-        </div>
-      ) : null}
-
       {/* Main Container layout - Adapts to Portrait and Landscape cleanly */}
       <main className="flex-1 flex flex-col md:flex-row w-full h-full gap-2 overflow-hidden p-2 min-h-0">
         {role === ROLES.UNASSIGNED ? (
@@ -5398,8 +5192,6 @@ export default function App() {
                    role={role}
                    teamNames={matchData.teamNames || { home: "HOME", away: "AWAY" }}
                    timeouts={matchData.timeouts}
-                   currentSet={matchData.score?.set || 1}
-                   setScores={matchData.setScores || []}
                 />
               </div>
             </div>
@@ -5497,12 +5289,11 @@ export default function App() {
 
       {isSetupModalOpen && (
         <PlayerSetupModal 
-          team={role === ROLES.COACH ? 'home' : role} 
-          currentRotations={matchData.rotations[role === ROLES.COACH ? 'home' : role]} 
-          currentRoster={matchData.roster[role === ROLES.COACH ? 'home' : role]}
+          team={role} 
+          currentRotations={matchData.rotations[role]} 
+          currentRoster={matchData.roster[role]}
           currentTeamNames={matchData.teamNames || { home: "HOME", away: "AWAY" }}
-          currentMatchInfo={matchData.matchInfo}
-          onSave={(newRots, newRoster, names, newMatchInfo) => handleUpdateRoster(role === ROLES.COACH ? 'home' : role, newRots, newRoster, names, newMatchInfo)}
+          onSave={(newRots, newRoster, names) => handleUpdateRoster(role, newRots, newRoster, names)}
           onClose={() => setIsSetupModalOpen(false)} 
         />
       )}

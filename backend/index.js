@@ -44,6 +44,7 @@ const MatchStateSchema = new mongoose.Schema({
   roomId: { type: String, required: true, unique: true },
   status: String,
   teamNames: mongoose.Schema.Types.Mixed,
+  matchInfo: mongoose.Schema.Types.Mixed,
   score: mongoose.Schema.Types.Mixed,
   setsWon: mongoose.Schema.Types.Mixed,
   timeouts: mongoose.Schema.Types.Mixed,
@@ -53,6 +54,7 @@ const MatchStateSchema = new mongoose.Schema({
   liberoSwaps: mongoose.Schema.Types.Mixed,
   tempRallyEvents: Array,
   events: Array,
+  setScores: Array,
   createdBy: { type: String, default: null },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -63,9 +65,11 @@ const MatchHistorySchema = new mongoose.Schema({
   roomId: String,
   savedAt: { type: Number, default: Date.now },
   teamNames: mongoose.Schema.Types.Mixed,
+  matchInfo: mongoose.Schema.Types.Mixed,
   score: mongoose.Schema.Types.Mixed,
   events: Array,
-  roster: mongoose.Schema.Types.Mixed
+  roster: mongoose.Schema.Types.Mixed,
+  setScores: Array
 });
 
 const MatchHistory = mongoose.model('MatchHistory', MatchHistorySchema);
