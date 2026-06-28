@@ -2929,7 +2929,7 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
 
 function TrackerView({ 
   role, score, teamNames, rotations, roster, tempRallyEvents, onSaveEvent, onCommitRally, onClearRally, onUndo, onFoul, onSubstitution, onManualRotate, hasEvents, timeouts, currentServe,
-  status, onManualEndSet, onManualEndMatch, onResumeMatch
+  status, onManualEndSet, onManualEndMatch, onResumeMatch, hideCourts = false
 }) {
   const { lang } = useContext(LanguageContext);
   const t = (key) => (translations[lang] || {})[key] || (translations['th'] || {})[key] || key;
@@ -3015,26 +3015,28 @@ function TrackerView({
   return (
     <div className="flex flex-col h-full bg-slate-900 overflow-hidden min-h-0 w-full">
       {/* Live score header */}
-      <div className="bg-slate-950 p-2 border-b border-slate-800 flex items-center justify-between shadow-inner shrink-0 text-xs">
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-          <span className="text-[10px] sm:text-xs font-bold text-slate-400 tracking-wider">{t('liveScoreLabel')}</span>
-        </div>
-        <div className="flex items-center gap-3 bg-slate-900 px-3 py-1 rounded-full border border-slate-700 shadow">
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[10px] sm:text-xs font-black ${role === 'home' ? 'text-indigo-400' : 'text-slate-400'}`}>{teamNames.home}</span>
-            {isHomeServe && <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full animate-ping"></span>}
-            <span className="text-xs sm:text-sm font-extrabold font-mono text-white bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{score.home}</span>
+      {!hideCourts && (
+        <div className="bg-slate-950 p-2 border-b border-slate-800 flex items-center justify-between shadow-inner shrink-0 text-xs">
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-400 tracking-wider">{t('liveScoreLabel')}</span>
           </div>
-          <span className="text-slate-500 font-black text-xs">:</span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs sm:text-sm font-extrabold font-mono text-white bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{score.away}</span>
-            {isAwayServe && <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full animate-ping"></span>}
-            <span className={`text-[10px] sm:text-xs font-black ${role === 'away' ? 'text-rose-400' : 'text-slate-400'}`}>{teamNames.away}</span>
+          <div className="flex items-center gap-3 bg-slate-900 px-3 py-1 rounded-full border border-slate-700 shadow">
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] sm:text-xs font-black ${role === 'home' ? 'text-indigo-400' : 'text-slate-400'}`}>{teamNames.home}</span>
+              {isHomeServe && <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full animate-ping"></span>}
+              <span className="text-xs sm:text-sm font-extrabold font-mono text-white bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{score.home}</span>
+            </div>
+            <span className="text-slate-500 font-black text-xs">:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs sm:text-sm font-extrabold font-mono text-white bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{score.away}</span>
+              {isAwayServe && <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full animate-ping"></span>}
+              <span className={`text-[10px] sm:text-xs font-black ${role === 'away' ? 'text-rose-400' : 'text-slate-400'}`}>{teamNames.away}</span>
+            </div>
+            <div className="text-[8px] sm:text-[9px] bg-slate-800 text-amber-400 font-extrabold px-1.5 py-0.5 rounded leading-none border border-amber-900/30">SET {score.set}</div>
           </div>
-          <div className="text-[8px] sm:text-[9px] bg-slate-800 text-amber-400 font-extrabold px-1.5 py-0.5 rounded leading-none border border-amber-900/30">SET {score.set}</div>
         </div>
-      </div>
+      )}
 
       {/* Control Actions bar */}
       <div className="bg-slate-950/70 p-1.5 border-b border-slate-800 flex justify-between items-center px-2 shrink-0">
@@ -3090,68 +3092,70 @@ function TrackerView({
       </div>
 
       {/* Current Rally details */}
-      <div className="bg-slate-900 p-2 border-b border-slate-800 flex flex-col gap-1.5 shrink-0 z-20 shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold tracking-wider flex items-center gap-1">
-            <span>{t('currentRallyLabel')}</span>
-            {isChainedScout && (
-              <span className="inline-flex items-center gap-0.5 bg-indigo-950 border border-indigo-800 text-indigo-400 text-[8px] px-1.5 py-0.5 rounded animate-pulse font-extrabold">
-                <Link2 className="w-2.5 h-2.5" /> {t('lockNextAttack')}
-              </span>
-            )}
-          </span>
-          {tempRallyEvents.length > 0 && (
-            <button 
-              onClick={onClearRally}
-              className="text-[8px] sm:text-[9px] bg-rose-950 hover:bg-rose-900 text-rose-400 border border-rose-900/50 px-2 py-0.5 rounded transition-all active:scale-95"
-            >
-              {t('clearRallyBtn')}
-            </button>
-          )}
-        </div>
-        
-        <div className="flex gap-1.5 items-center overflow-x-auto py-1 custom-scrollbar min-h-[38px] bg-slate-950 px-2 rounded-lg border border-slate-800/80 shadow-inner">
-          {tempRallyEvents.length === 0 ? (
-            <span className="text-[9px] sm:text-[10px] text-slate-500 italic flex items-center gap-1">
-               <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span> {t('waitFirstSkill')}
+      {!hideCourts && (
+        <div className="bg-slate-900 p-2 border-b border-slate-800 flex flex-col gap-1.5 shrink-0 z-20 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold tracking-wider flex items-center gap-1">
+              <span>{t('currentRallyLabel')}</span>
+              {isChainedScout && (
+                <span className="inline-flex items-center gap-0.5 bg-indigo-950 border border-indigo-800 text-indigo-400 text-[8px] px-1.5 py-0.5 rounded animate-pulse font-extrabold">
+                  <Link2 className="w-2.5 h-2.5" /> {t('lockNextAttack')}
+                </span>
+              )}
             </span>
-          ) : (
-            tempRallyEvents.map((evt, idx) => (
-              <React.Fragment key={evt.id}>
-                {idx > 0 && <span className="text-slate-600 font-black text-xs">➔</span>}
-                <div className="bg-slate-800 border border-slate-700 px-2 py-1 rounded flex items-center gap-1.5 text-[10px] sm:text-[11px] shrink-0 shadow-sm">
-                  <span className="font-extrabold text-indigo-400">#{evt.player}</span>
-                  <span className="text-slate-200 font-medium">{getLocalizedSkillLabel(evt.skill, lang).split(' ')[0]}</span>
-                  <span className={`px-1.5 text-[8px] sm:text-[9px] rounded font-black text-white ${EVALUATIONS.find(e => e.id === evt.eval)?.color}`}>
-                    {evt.eval}
-                  </span>
-                </div>
-              </React.Fragment>
-            ))
+            {tempRallyEvents.length > 0 && (
+              <button 
+                onClick={onClearRally}
+                className="text-[8px] sm:text-[9px] bg-rose-950 hover:bg-rose-900 text-rose-400 border border-rose-900/50 px-2 py-0.5 rounded transition-all active:scale-95"
+              >
+                {t('clearRallyBtn')}
+              </button>
+            )}
+          </div>
+          
+          <div className="flex gap-1.5 items-center overflow-x-auto py-1 custom-scrollbar min-h-[38px] bg-slate-950 px-2 rounded-lg border border-slate-800/80 shadow-inner">
+            {tempRallyEvents.length === 0 ? (
+              <span className="text-[9px] sm:text-[10px] text-slate-500 italic flex items-center gap-1">
+                 <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span> {t('waitFirstSkill')}
+              </span>
+            ) : (
+              tempRallyEvents.map((evt, idx) => (
+                <React.Fragment key={evt.id}>
+                  {idx > 0 && <span className="text-slate-600 font-black text-xs">➔</span>}
+                  <div className="bg-slate-800 border border-slate-700 px-2 py-1 rounded flex items-center gap-1.5 text-[10px] sm:text-[11px] shrink-0 shadow-sm">
+                    <span className="font-extrabold text-indigo-400">#{evt.player}</span>
+                    <span className="text-slate-200 font-medium">{getLocalizedSkillLabel(evt.skill, lang).split(' ')[0]}</span>
+                    <span className={`px-1.5 text-[8px] sm:text-[9px] rounded font-black text-white ${EVALUATIONS.find(e => e.id === evt.eval)?.color}`}>
+                      {evt.eval}
+                    </span>
+                  </div>
+                </React.Fragment>
+              ))
+            )}
+          </div>
+  
+          {tempRallyEvents.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 mt-0.5 shrink-0">
+              <button
+                onClick={() => { onCommitRally('home'); setIsChainedScout(false); }}
+                className="py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-[10px] sm:text-[11px] rounded-lg border border-indigo-500 shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all px-1"
+              >
+                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline">{t('rallyPointWon').replace('{team}', teamNames.home)}</span>
+                <span className="sm:hidden">{t('rallyPointWonShort').replace('{team}', teamNames.home)}</span>
+              </button>
+              <button
+                onClick={() => { onCommitRally('away'); setIsChainedScout(false); }}
+                className="py-1.5 sm:py-2 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-[10px] sm:text-[11px] rounded-lg border border-rose-500 shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all px-1"
+              >
+                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="hidden sm:inline">{t('rallyPointWon').replace('{team}', teamNames.away)}</span>
+                <span className="sm:hidden">{t('rallyPointWonShort').replace('{team}', teamNames.away)}</span>
+              </button>
+            </div>
           )}
         </div>
-
-        {tempRallyEvents.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 mt-0.5 shrink-0">
-            <button
-              onClick={() => { onCommitRally('home'); setIsChainedScout(false); }}
-              className="py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-[10px] sm:text-[11px] rounded-lg border border-indigo-500 shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all px-1"
-            >
-              <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">{t('rallyPointWon').replace('{team}', teamNames.home)}</span>
-              <span className="sm:hidden">{t('rallyPointWonShort').replace('{team}', teamNames.home)}</span>
-            </button>
-            <button
-              onClick={() => { onCommitRally('away'); setIsChainedScout(false); }}
-              className="py-1.5 sm:py-2 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-[10px] sm:text-[11px] rounded-lg border border-rose-500 shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all px-1"
-            >
-              <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">{t('rallyPointWon').replace('{team}', teamNames.away)}</span>
-              <span className="sm:hidden">{t('rallyPointWonShort').replace('{team}', teamNames.away)}</span>
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Main Interactive Screen layout: Left is Court, Right is Action Panel */}
       <div className="flex-1 flex flex-row overflow-hidden relative min-h-0 w-full gap-1.5 p-1 sm:p-2">
@@ -3170,82 +3174,88 @@ function TrackerView({
         )}
         
         {/* LEFT: Compact courts wrapper */}
-        <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/40 rounded-xl border border-slate-800/60 p-1 sm:p-2 min-h-0 overflow-hidden">
-           {/* Opponent Court */}
-           <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mb-1 shrink min-h-0">
-             <div className="text-rose-400 font-extrabold text-[7.5px] sm:text-[9px] mb-0.5 tracking-wider uppercase">{t('opponentCourtLabel')}</div>
-             <div className="w-full h-full grid grid-cols-3 grid-rows-[2fr_1fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
-               {OPP_COURT_ZONES.map(zone => (
-                 <button
-                   key={`opp-${zone.id}`}
-                   onClick={() => handleZoneClick(zone.id, true)}
-                   className={`border border-white/20 flex items-center justify-center text-xs sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
-                     ${currentEvent.endZone === zone.id ? 'bg-rose-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : 'text-white/20'}
-                   `}
-                 >
-                   {zone.label}
-                 </button>
-               ))}
-               <div className="absolute bottom-[33.33%] left-0 w-full border-b border-white/40 pointer-events-none"></div>
-             </div>
-           </div>
-
-           {/* Net line */}
-           <div className="w-full max-w-[240px] h-1 sm:h-1.5 bg-slate-300 z-20 shadow-[0_0_5px_rgba(255,255,255,0.5)] my-0.5 sm:my-1 relative rounded-full shrink">
-              <div className="absolute inset-0 flex items-center justify-center">
-                 <div className="bg-slate-900 px-1.5 py-0.5 rounded-full text-[5px] sm:text-[6px] text-white font-extrabold tracking-widest leading-none border border-slate-700">NET</div>
-              </div>
-           </div>
-
-           {/* Own Court */}
-           <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mt-1 shrink min-h-0">
-             <div className="w-full h-full grid grid-cols-3 grid-rows-[1fr_2fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
-               {COURT_ZONES.map(zone => {
-                 const playerNum = getPlayerInZone(zone.id);
-                 const playerDetails = (teamRoster as Record<string, any>)[playerNum] || { name: '-', position: '-' };
-                 const isSelected = currentEvent.startZone === zone.id;
-
-                 return (
+        {!hideCourts && (
+          <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/40 rounded-xl border border-slate-800/60 p-1 sm:p-2 min-h-0 overflow-hidden">
+             {/* Opponent Court */}
+             <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mb-1 shrink min-h-0">
+               <div className="text-rose-400 font-extrabold text-[7.5px] sm:text-[9px] mb-0.5 tracking-wider uppercase">{t('opponentCourtLabel')}</div>
+               <div className="w-full h-full grid grid-cols-3 grid-rows-[2fr_1fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
+                 {OPP_COURT_ZONES.map(zone => (
                    <button
-                     key={`own-${zone.id}`}
-                     onClick={() => handleZoneClick(zone.id, false)}
-                     className={`border border-white/20 flex flex-col items-center justify-center transition-all relative group cursor-pointer hover:bg-white/10
-                       ${isSelected ? 'bg-emerald-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : ''}
+                     key={`opp-${zone.id}`}
+                     onClick={() => handleZoneClick(zone.id, true)}
+                     className={`border border-white/20 flex items-center justify-center text-xs sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
+                       ${currentEvent.endZone === zone.id ? 'bg-rose-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : 'text-white/20'}
                      `}
                    >
-                     <span className={`absolute top-0.5 left-1 text-[6px] sm:text-[8px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
-                     {playerNum ? (
-                       <div className="flex flex-col items-center justify-center">
-                         <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
-                         <span className="text-[5px] sm:text-[8px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
-                       </div>
-                     ) : (
-                       <span className="text-[10px] sm:text-sm font-black text-white/10">{zone.label}</span>
-                     )}
+                     {zone.label}
                    </button>
-                 );
-               })}
-               <div className="absolute top-[33.33%] left-0 w-full border-t border-white/40 pointer-events-none"></div>
+                 ))}
+                 <div className="absolute bottom-[33.33%] left-0 w-full border-b border-white/40 pointer-events-none"></div>
+               </div>
              </div>
-             <div className={`mt-0.5 font-extrabold text-[7.5px] sm:text-[9px] tracking-wider ${teamColor}`}>{t('ownCourtLabel')}</div>
-           </div>
-        </div>
+
+             {/* Net line */}
+             <div className="w-full max-w-[240px] h-1 sm:h-1.5 bg-slate-300 z-20 shadow-[0_0_5px_rgba(255,255,255,0.5)] my-0.5 sm:my-1 relative rounded-full shrink">
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <div className="bg-slate-900 px-1.5 py-0.5 rounded-full text-[5px] sm:text-[6px] text-white font-extrabold tracking-widest leading-none border border-slate-700">NET</div>
+                </div>
+             </div>
+
+             {/* Own Court */}
+             <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mt-1 shrink min-h-0">
+               <div className="w-full h-full grid grid-cols-3 grid-rows-[1fr_2fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
+                 {COURT_ZONES.map(zone => {
+                   const playerNum = getPlayerInZone(zone.id);
+                   const playerDetails = (teamRoster as Record<string, any>)[playerNum] || { name: '-', position: '-' };
+                   const isSelected = currentEvent.startZone === zone.id;
+
+                   return (
+                     <button
+                       key={`own-${zone.id}`}
+                       onClick={() => handleZoneClick(zone.id, false)}
+                       className={`border border-white/20 flex flex-col items-center justify-center transition-all relative group cursor-pointer hover:bg-white/10
+                         ${isSelected ? 'bg-emerald-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : ''}
+                       `}
+                     >
+                       <span className={`absolute top-0.5 left-1 text-[6px] sm:text-[8px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
+                       {playerNum ? (
+                         <div className="flex flex-col items-center justify-center">
+                           <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
+                           <span className="text-[5px] sm:text-[8px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
+                         </div>
+                       ) : (
+                         <span className="text-[10px] sm:text-sm font-black text-white/10">{zone.label}</span>
+                       )}
+                     </button>
+                   );
+                 })}
+                 <div className="absolute top-[33.33%] left-0 w-full border-t border-white/40 pointer-events-none"></div>
+               </div>
+               <div className={`mt-0.5 font-extrabold text-[7.5px] sm:text-[9px] tracking-wider ${teamColor}`}>{t('ownCourtLabel')}</div>
+             </div>
+          </div>
+        )}
 
         {/* RIGHT: Action Keying Panel placed directly on the right side of courts */}
-        <div className={`shrink-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-all duration-300
-          ${isActionPanelOpen 
-            ? 'relative w-[185px] xs:w-[210px] sm:w-[220px] lg:w-[240px] opacity-100 p-1.5 sm:p-3' 
-            : 'w-0 h-0 overflow-hidden opacity-0 p-0 border-none'
+        <div className={`bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-all duration-300
+          ${hideCourts 
+            ? 'flex-1 w-full p-2 sm:p-4' 
+            : isActionPanelOpen 
+              ? 'relative w-[185px] xs:w-[210px] sm:w-[220px] lg:w-[240px] opacity-100 p-1.5 sm:p-3' 
+              : 'w-0 h-0 overflow-hidden opacity-0 p-0 border-none'
           }
         `}>
           {/* Toggle Panel Button sticking on the left side of the panel (Desktop/Tablet sibling toggle) */}
-          <button 
-            onClick={() => setIsActionPanelOpen(!isActionPanelOpen)}
-            className="absolute top-1/2 -left-8 transform -translate-y-1/2 w-8 h-12 bg-slate-900 border-y border-l border-slate-700 rounded-l-xl hidden sm:flex items-center justify-center text-amber-400 hover:text-amber-300 shadow-[-4px_0_10px_rgba(0,0,0,0.3)] z-40 transition-colors"
-            title={isActionPanelOpen ? t('hidePanelTitle') : t('showPanelTitle')}
-          >
-            {isActionPanelOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          </button>
+          {!hideCourts && (
+            <button 
+              onClick={() => setIsActionPanelOpen(!isActionPanelOpen)}
+              className="absolute top-1/2 -left-8 transform -translate-y-1/2 w-8 h-12 bg-slate-900 border-y border-l border-slate-700 rounded-l-xl hidden sm:flex items-center justify-center text-amber-400 hover:text-amber-300 shadow-[-4px_0_10px_rgba(0,0,0,0.3)] z-40 transition-colors"
+              title={isActionPanelOpen ? t('hidePanelTitle') : t('showPanelTitle')}
+            >
+              {isActionPanelOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            </button>
+          )}
 
           {/* Header title inside panel */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-1 sm:pb-2 mb-1.5 sm:mb-3">
@@ -3337,7 +3347,7 @@ function TrackerView({
       </div>
 
       {/* Floating Toggle Handle for Action Panel when it is fully CLOSED (sm and up) */}
-      {!isActionPanelOpen && (
+      {!hideCourts && !isActionPanelOpen && (
         <button 
           onClick={() => setIsActionPanelOpen(true)}
           className="absolute top-1/2 right-2 transform -translate-y-1/2 w-8 h-12 bg-slate-900 border border-slate-700 rounded-l-xl hidden sm:flex items-center justify-center text-amber-400 hover:text-amber-300 shadow-[-4px_0_10px_rgba(0,0,0,0.4)] z-50 transition-colors"
@@ -3348,12 +3358,14 @@ function TrackerView({
       )}
 
       {/* Floating Toggle Button for Mobile overlay */}
-      <button 
-        onClick={() => setIsActionPanelOpen(!isActionPanelOpen)}
-        className="absolute bottom-4 right-4 bg-slate-800 hover:bg-slate-700 text-amber-400 p-3 rounded-full border border-slate-600 shadow-2xl z-50 flex sm:hidden items-center justify-center active:scale-90 transition-transform"
-      >
-        {isActionPanelOpen ? <X className="w-5 h-5" /> : <ClipboardList className="w-5 h-5" />}
-      </button>
+      {!hideCourts && (
+        <button 
+          onClick={() => setIsActionPanelOpen(!isActionPanelOpen)}
+          className="absolute bottom-4 right-4 bg-slate-800 hover:bg-slate-700 text-amber-400 p-3 rounded-full border border-slate-600 shadow-2xl z-50 flex sm:hidden items-center justify-center active:scale-90 transition-transform"
+        >
+          {isActionPanelOpen ? <X className="w-5 h-5" /> : <ClipboardList className="w-5 h-5" />}
+        </button>
+      )}
 
       {subModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3 backdrop-blur-sm">
@@ -3456,7 +3468,7 @@ function TrackerView({
       )}
     </div>
   );
-}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [] }) {
+}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false }) {
   const { lang } = useContext(LanguageContext);
   const [activeTab, setActiveTab] = useState<'summary' | 'heatmap' | 'rotation' | 'logs'>('summary');
   const [selectedSet, setSelectedSet] = useState<number | 'all'>('all');
@@ -3469,6 +3481,63 @@ function TrackerView({
       });
     }
     return val;
+  };
+
+  const TeamStatusGraphics = ({ team, timeoutsCount }) => {
+    const subsCount = useMemo(() => {
+      const tEvents = selectedSet === 'all' 
+        ? events 
+        : events.filter(e => e.set === selectedSet);
+      return tEvents.filter(e => e.team === team && e.skill === 'substitute').length;
+    }, [team, events, selectedSet]);
+
+    return (
+      <div className="flex flex-wrap items-center gap-3 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 shadow-inner shrink-0">
+        {/* Timeouts Indicator */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9px] font-black text-slate-400 tracking-wider uppercase">
+            {t('timeoutsLabel')}:
+          </span>
+          <div className="flex gap-1">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div 
+                key={i} 
+                className={`w-3.5 h-3.5 rounded flex items-center justify-center font-black font-mono text-[8px] border transition-all duration-300
+                  ${i < timeoutsCount 
+                    ? 'bg-amber-500 border-amber-400 text-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse' 
+                    : 'bg-slate-900 border-slate-700 text-slate-600'
+                  }`}
+              >
+                T
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <span className="text-slate-800 text-[10px] font-black">|</span>
+
+        {/* Substitutions Indicator */}
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] font-black text-slate-400 tracking-wider uppercase">
+            {t('subsLabel')}:
+          </span>
+          <div className="flex gap-0.5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div 
+                key={i} 
+                className={`w-1.5 h-3 rounded-sm border transition-all duration-300
+                  ${i < subsCount 
+                    ? 'bg-indigo-500 border-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.6)]' 
+                    : 'bg-slate-900 border-slate-800'
+                  }`} 
+              />
+            ))}
+          </div>
+          <span className="text-[9px] font-mono font-black text-slate-300 ml-1">{subsCount}/6</span>
+        </div>
+      </div>
+    );
   };
 
   const filteredEvents = useMemo(() => {
@@ -3535,65 +3604,104 @@ function TrackerView({
   const showAway = role === ROLES.AWAY || role === ROLES.COACH;
 
   return (
-    <div className="flex flex-col gap-1.5 h-full overflow-hidden min-h-0">
+    <div className="flex flex-col gap-2 h-full overflow-hidden min-h-0">
       {/* Tab Switchers */}
-      <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 shrink-0 gap-1 shadow-sm">
+      <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shrink-0 gap-1.5 shadow-sm">
         <button
           onClick={() => setActiveTab('summary')}
-          className={`flex-1 py-2 text-[10px] md:text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all
+          className={`flex-1 py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider
             ${activeTab === 'summary' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
           `}
         >
-          <BarChart3 className="w-3.5 h-3.5" /> {t('qualityTab')}
+          <BarChart3 className="w-4 h-4 text-indigo-300" /> {t('qualityTab')}
         </button>
-        <button
-          onClick={() => setActiveTab('heatmap')}
-          className={`flex-1 py-2 text-[10px] md:text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all
-            ${activeTab === 'heatmap' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
-          `}
-        >
-          <Swords className="w-3.5 h-3.5" /> {t('attackZoneTab')}
-        </button>
-        <button
-          onClick={() => setActiveTab('rotation')}
-          className={`flex-1 py-2 text-[10px] md:text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all
-            ${activeTab === 'rotation' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
-          `}
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> {t('rotationTab')}
-        </button>
+        {!hideTabs && (
+          <button
+            onClick={() => setActiveTab('heatmap')}
+            className={`flex-1 py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider
+              ${activeTab === 'heatmap' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
+            `}
+          >
+            <Swords className="w-4 h-4 text-rose-400" /> {t('attackZoneTab')}
+          </button>
+        )}
+        {!hideTabs && (
+          <button
+            onClick={() => setActiveTab('rotation')}
+            className={`flex-1 py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider
+              ${activeTab === 'rotation' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
+            `}
+          >
+            <RotateCcw className="w-4 h-4 text-amber-400" /> {t('rotationTab')}
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('logs')}
-          className={`flex-1 py-2 text-[10px] md:text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all
+          className={`flex-1 py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider
             ${activeTab === 'logs' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
           `}
         >
-          <ClipboardList className="w-3.5 h-3.5" /> {t('logsTab')}
+          <ClipboardList className="w-4 h-4 text-emerald-400" /> {t('logsTab')}
         </button>
+      </div>
+
+      {/* Set Selector */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 shrink-0 scrollbar-none bg-slate-950 p-1.5 rounded-xl border border-slate-800 shadow-inner">
+        <span className="text-xs text-slate-400 font-extrabold uppercase tracking-wider shrink-0 mr-1 pl-1">
+          {lang === 'en' ? 'Set Filter:' : 'กรองเซต:'}
+        </span>
+        <button
+          onClick={() => setSelectedSet('all')}
+          className={`px-3.5 py-1.5 text-xs font-black rounded-lg transition-all shrink-0 border
+            ${selectedSet === 'all' 
+              ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm' 
+              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'}
+          `}
+        >
+          {lang === 'en' ? 'All Sets' : 'ทุกเซต'}
+        </button>
+        {Array.from({ length: currentSet }, (_, i) => i + 1).map(setNum => {
+          const compScore = setScores?.find(s => s.setNum === setNum);
+          const scoreDisplay = compScore ? ` (${compScore.home}-${compScore.away})` : '';
+          const isCurrent = setNum === currentSet;
+          return (
+            <button
+              key={setNum}
+              onClick={() => setSelectedSet(setNum)}
+              className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all shrink-0 border flex items-center gap-1
+                ${selectedSet === setNum 
+                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm' 
+                  : isCurrent
+                    ? 'bg-slate-900 border-amber-500/50 text-amber-400 hover:text-amber-200 hover:bg-slate-800'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'}
+              `}
+            >
+              <span>{lang === 'en' ? `Set ${setNum}` : `เซต ${setNum}`}</span>
+              {scoreDisplay && <span className="font-mono text-[10px] opacity-80">{scoreDisplay}</span>}
+              {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Live Set" />}
+            </button>
+          );
+        })}
       </div>
 
       {/* SUMMARY / STATS VIEW */}
       {activeTab === 'summary' && (
         <div className="flex-1 flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-0.5 min-h-0">
           {showHome && (
-            <div className="bg-slate-900 rounded-xl p-3 border border-slate-700 shadow-md shrink-0">
-              <h3 className="text-[11px] sm:text-[13px] font-black text-indigo-400 mb-2.5 flex justify-between items-center tracking-wider border-b border-slate-800 pb-1.5">
+            <div className="bg-slate-900 rounded-xl p-3.5 border border-slate-700 shadow-md shrink-0">
+              <h3 className="text-xs sm:text-sm md:text-base font-black text-indigo-400 mb-3 flex justify-between items-center tracking-wider border-b border-slate-800 pb-2">
                 <span>{lang === 'en' ? `${teamNames.home} TEAM STATS` : `สถิติทีม ${teamNames.home}`}</span>
-                <span className="text-[9px] text-slate-300 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-700 shadow-inner">
-                  {t('timeoutsUsed').replace('{count}', String(timeouts?.home || 0))}
-                </span>
+                <TeamStatusGraphics team="home" timeoutsCount={timeouts?.home || 0} />
               </h3>
               <SkillBarStats teamStats={homeStats} />
             </div>
           )}
 
           {showAway && (
-            <div className="bg-slate-900 rounded-xl p-3 border border-slate-700 shadow-md shrink-0">
-              <h3 className="text-[11px] sm:text-[13px] font-black text-rose-400 mb-2.5 flex justify-between items-center tracking-wider border-b border-slate-800 pb-1.5">
+            <div className="bg-slate-900 rounded-xl p-3.5 border border-slate-700 shadow-md shrink-0">
+              <h3 className="text-xs sm:text-sm md:text-base font-black text-rose-400 mb-3 flex justify-between items-center tracking-wider border-b border-slate-800 pb-2">
                 <span>{lang === 'en' ? `${teamNames.away} TEAM STATS` : `สถิติทีม ${teamNames.away}`}</span>
-                <span className="text-[9px] text-slate-300 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-700 shadow-inner">
-                  {t('timeoutsUsed').replace('{count}', String(timeouts?.away || 0))}
-                </span>
+                <TeamStatusGraphics team="away" timeoutsCount={timeouts?.away || 0} />
               </h3>
               <SkillBarStats teamStats={awayStats} />
             </div>
@@ -3803,6 +3911,49 @@ export default function App() {
   
   const [activeMobileView, setActiveMobileView] = useState('court');
   const [setEndData, setSetEndData] = useState(null);
+
+  const [leftWidth, setLeftWidth] = useState(380);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = leftWidth;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(280, Math.min(600, startWidth + deltaX));
+      setLeftWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const startX = touch.clientX;
+    const startWidth = leftWidth;
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      const touchMove = moveEvent.touches[0];
+      const deltaX = touchMove.clientX - startX;
+      const newWidth = Math.max(280, Math.min(600, startWidth + deltaX));
+      setLeftWidth(newWidth);
+    };
+
+    const handleTouchEnd = () => {
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+  };
 
   const [appFontSize, setAppFontSize] = useState(() => {
     const saved = localStorage.getItem('app_font_size');
@@ -4182,6 +4333,10 @@ export default function App() {
 
   const handleUpdateScore = (team, increment) => {
     if (setEndData) return;
+    if (increment > 0 && matchData.tempRallyEvents && matchData.tempRallyEvents.length > 0) {
+      handleCommitRally(team);
+      return;
+    }
     const newScore = Math.max(0, matchData.score[team] + increment);
     
     const prevServe = matchData.currentServe;
@@ -5268,7 +5423,7 @@ export default function App() {
               onClick={() => setIsSetupModalOpen(true)}
               className="flex items-center gap-1.5 text-[10px] sm:text-[11px] bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1.5 rounded-lg border border-indigo-500 transition-colors text-white font-bold shadow-md"
             >
-              <Users className="w-3.5 h-3.5 text-indigo-200" /> <span className="hidden xs:inline">{lang === 'en' ? 'Match & Team Setup' : 'ตั้งค่าแมตช์ & ทีม'}</span>
+              <Users className="w-3.5 h-3.5 text-indigo-200" /> <span>{lang === 'en' ? 'Match & Team Setup' : 'ตั้งค่าแมตช์ & ทีม'}</span>
             </button>
           )}
 
@@ -5372,12 +5527,19 @@ export default function App() {
         {role === ROLES.UNASSIGNED ? (
           <RoleSelection onSelect={setRole} />
         ) : (
-          <div className="flex flex-col md:flex-row w-full h-full gap-2 overflow-hidden">
+          <div className="flex flex-col md:flex-row w-full h-full gap-1 md:gap-0 overflow-hidden">
             {/* Dashboard / Stats layout */}
-            <div className={`flex flex-col gap-2 h-full min-h-0 shrink-0
-              ${role === ROLES.COACH ? 'w-full' : 'w-full md:w-[38%] lg:w-[32%] md:max-w-[420px]'}
-              ${role !== ROLES.COACH && activeMobileView !== 'stats' ? 'hidden md:flex' : 'flex'}
-            `}>
+            <div 
+              className={`flex flex-col gap-2 h-full min-h-0 shrink-0
+                ${role === ROLES.COACH ? 'w-full' : ''}
+                ${role !== ROLES.COACH && activeMobileView !== 'stats' ? 'hidden md:flex' : 'flex'}
+              `}
+              style={{
+                width: role === ROLES.COACH ? '100%' : undefined,
+                flexBasis: role === ROLES.COACH ? 'auto' : `${leftWidth}px`,
+                maxWidth: role === ROLES.COACH ? 'none' : '100%'
+              }}
+            >
               <ScoreBoard 
                 score={matchData.score} 
                 setsWon={matchData.setsWon}
@@ -5400,9 +5562,21 @@ export default function App() {
                    timeouts={matchData.timeouts}
                    currentSet={matchData.score?.set || 1}
                    setScores={matchData.setScores || []}
+                   hideTabs={role !== ROLES.COACH}
                 />
               </div>
             </div>
+
+            {/* Splitter bar (only shown if not COACH and role is selected) */}
+            {role !== ROLES.COACH && role !== ROLES.UNASSIGNED && (
+              <div 
+                className="hidden md:flex w-2.5 hover:w-3 bg-slate-900 border-x border-slate-800 hover:bg-indigo-600 hover:border-indigo-500 cursor-col-resize self-stretch transition-all duration-150 relative items-center justify-center shrink-0 group select-none"
+                onTouchStart={handleTouchStart}
+                onMouseDown={handleMouseDown}
+              >
+                <div className="w-1 h-8 rounded-full bg-slate-700 group-hover:bg-indigo-300 transition-colors" />
+              </div>
+            )}
 
             {/* Scouter Court View */}
             {role !== ROLES.COACH && (

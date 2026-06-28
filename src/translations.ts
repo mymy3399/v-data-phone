@@ -187,6 +187,8 @@ export const translations = {
     rotationTab: "ROTATION",
     logsTab: "LOGS",
     timeoutsUsed: "เวลานอกใช้ไป: {count}/2",
+    timeoutsLabel: "เวลานอก",
+    subsLabel: "เปลี่ยนตัว",
     noDataLabel: "ไม่มีข้อมูล",
     lineupLabel: "Lineup", // Volleyball standard
     heatmapTitle: "OPPONENT COURT SUCCESS & ERROR HEATMAP",
@@ -404,6 +406,8 @@ export const translations = {
     rotationTab: "ROTATION",
     logsTab: "LOGS",
     timeoutsUsed: "Timeouts used: {count}/2",
+    timeoutsLabel: "T-OUT",
+    subsLabel: "SUB",
     noDataLabel: "No Data",
     lineupLabel: "Lineup",
     heatmapTitle: "OPPONENT COURT ATTACK HEATMAP (SUCCESS / ERROR)",
