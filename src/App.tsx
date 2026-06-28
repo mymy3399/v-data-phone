@@ -4799,30 +4799,31 @@ export default function App() {
       });
 
       return `
-                      <TrackerView 
-                    status={matchData.status}
-                    onManualEndSet={handleManualEndSet}
-                    onManualEndMatch={handleManualEndMatch}
-                    onResumeMatch={handleResumeMatch}
-                    role={role} 
-                    score={matchData.score}
-                    teamNames={matchData.teamNames || { home: "HOME", away: "AWAY" }}
-                    rotations={matchData.rotations} 
-                    roster={matchData.roster}
-                    tempRallyEvents={matchData.tempRallyEvents || []}
-                    timeouts={matchData.timeouts}
-                    currentServe={matchData.currentServe}
-                    onSaveEvent={handleAddToTempRally}
-                    onCommitRally={handleCommitRally}
-                    onClearRally={handleClearTempRally}
-                    onUndo={handleUndoLastEvent}
-                    onFoul={(fType) => handleFoul(role, fType)}
-                    onSubstitution={(target, sub) => handleSubstitution(role, target, sub)}
-                    onManualRotate={() => rotateTeamClockwise(role)}
-                    hasEvents={matchData.events.filter(e => e.team === role).length > 0}
-                    onLiberoQuickSwap={(zoneId) => handleLiberoQuickSwap(role, zoneId)}
-                    liberoSwaps={matchData.liberoSwaps || { home: {}, away: {} }}
-                 />olid #e2e8f0; }
+        <div style="
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-top: 15px;
+        ">
+          \${courtsHtml}
+        </div>
+      `;
+    };
+
+    const homeName = matchData.teamNames?.home || "HOME";
+    const awayName = matchData.teamNames?.away || "AWAY";
+
+    const printContent = `
+      <html>
+      <head>
+        <title>V Project (beta) - Detailed Scout Report [\${activeRoom}]</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+          body { font-family: 'Inter', Arial, sans-serif; padding: 30px; color: #0f172a; line-height: 1.6; background: #fff; }
+          .header { border-bottom: 3px solid #334155; padding-bottom: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .logo { font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -1px; }
+          .logo span { color: #f59e0b; font-size: 14px; vertical-align: super; }
+          .match-meta { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 35px; border: 1px solid #e2e8f0; }
           .score-card { font-size: 42px; font-weight: 900; letter-spacing: -1px; text-align: center; margin: 15px 0; color: #1e293b; }
           
           .section-box { border: 1px solid #cbd5e1; border-radius: 16px; padding: 25px; background: #ffffff; margin-bottom: 40px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
