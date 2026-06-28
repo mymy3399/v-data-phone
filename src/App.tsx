@@ -265,11 +265,14 @@ function SkillBarStats({ teamStats }) {
   );
 }
 
-function RotPlayer({ num, zone, pos }) {
+function RotPlayer({ num, zone, pos, isServer = false }) {
   return (
-    <div className="flex flex-col items-center justify-center bg-slate-800 border border-slate-700 py-1.5 rounded-lg relative z-10 shadow-sm">
+    <div className={`flex flex-col items-center justify-center bg-slate-800 border ${isServer ? 'border-amber-500 ring-1 ring-amber-500/50' : 'border-slate-700'} py-1.5 rounded-lg relative z-10 shadow-sm transition-all duration-300`}>
       <span className="absolute top-0 right-1 text-[7px] text-slate-400 font-bold">{zone}</span>
-      <span className="font-black text-white text-[12px] leading-tight mt-0.5">{num || '-'}</span>
+      {isServer && (
+        <VolleyballIcon className="w-3 h-3 text-amber-400 animate-[spin_5s_linear_infinite] absolute -top-1.5 left-1 bg-slate-900 rounded-full border border-amber-500 p-0.5" />
+      )}
+      <span className={`font-black text-[12px] leading-tight mt-0.5 ${isServer ? 'text-amber-400 font-mono' : 'text-white'}`}>{num || '-'}</span>
       <span className="text-[7px] text-amber-400 leading-none truncate max-w-[32px] uppercase font-mono font-bold">{pos || '-'}</span>
     </div>
   );
@@ -317,8 +320,23 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
             {isHomeServe && <span className="w-2 h-2 bg-amber-400 rounded-full animate-ping" title={lang === 'th' ? "ทีมเสิร์ฟ" : "Serving team"}></span>}
           </div>
           <div className="text-3xl sm:text-4xl font-black font-mono leading-none my-1 text-white">{score.home}</div>
-          <div className="text-[8px] sm:text-[9px] text-slate-400 font-bold mb-1 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
-            {t('setLabel')} <span className="text-indigo-400">{setsWon?.home || 0}</span>
+          <div className="flex gap-1 items-center mb-1">
+            <div className="text-[8px] sm:text-[9px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800 shrink-0">
+              {t('setLabel')} <span className="text-indigo-400">{setsWon?.home || 0}</span>
+            </div>
+            {currentServe !== null && (
+              <span className={`text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none shrink-0
+                ${isHomeServe 
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[0_0_6px_rgba(245,158,11,0.2)] animate-pulse' 
+                  : 'bg-slate-950 text-slate-500 border-slate-800'
+                }`}
+              >
+                {isHomeServe 
+                  ? (lang === 'en' ? 'Serving' : 'กำลังเสิร์ฟ') 
+                  : (lang === 'en' ? 'Receiving' : 'รับเสิร์ฟ')
+                }
+              </span>
+            )}
           </div>
           
           <div className="flex flex-col gap-1 w-full items-center mt-0.5">
@@ -398,8 +416,23 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
             <span className="text-rose-400 font-black text-[10px] sm:text-xs truncate max-w-[100px]">{teamNames.away}</span>
           </div>
           <div className="text-3xl sm:text-4xl font-black font-mono leading-none my-1 text-white">{score.away}</div>
-          <div className="text-[8px] sm:text-[9px] text-slate-400 font-bold mb-1 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
-            {t('setLabel')} <span className="text-rose-400">{setsWon?.away || 0}</span>
+          <div className="flex gap-1 items-center mb-1">
+            <div className="text-[8px] sm:text-[9px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800 shrink-0">
+              {t('setLabel')} <span className="text-rose-400">{setsWon?.away || 0}</span>
+            </div>
+            {currentServe !== null && (
+              <span className={`text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none shrink-0
+                ${isAwayServe 
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[0_0_6px_rgba(245,158,11,0.2)] animate-pulse' 
+                  : 'bg-slate-950 text-slate-500 border-slate-800'
+                }`}
+              >
+                {isAwayServe 
+                  ? (lang === 'en' ? 'Serving' : 'กำลังเสิร์ฟ') 
+                  : (lang === 'en' ? 'Receiving' : 'รับเสิร์ฟ')
+                }
+              </span>
+            )}
           </div>
           
           <div className="flex flex-col gap-1 w-full items-center mt-0.5">
@@ -3173,7 +3206,9 @@ function TrackerView({
           <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/40 rounded-xl border border-slate-800/60 p-1 sm:p-2 min-h-0 overflow-hidden">
              {/* Opponent Court */}
              <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mb-1 shrink min-h-0">
-               <div className="text-rose-400 font-extrabold text-[7.5px] sm:text-[9px] mb-0.5 tracking-wider uppercase">{t('opponentCourtLabel')}</div>
+               <div className="text-rose-400 font-extrabold text-[7.5px] sm:text-[9px] mb-0.5 tracking-wider uppercase">
+                 {t('opponentCourtLabel')} {currentServe !== null && (currentServe === (role === 'home' ? 'away' : 'home') ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
+               </div>
                <div className="w-full h-full grid grid-cols-3 grid-rows-[2fr_1fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
                  {OPP_COURT_ZONES.map(zone => (
                    <button
@@ -3227,7 +3262,9 @@ function TrackerView({
                  })}
                  <div className="absolute top-[33.33%] left-0 w-full border-t border-white/40 pointer-events-none"></div>
                </div>
-               <div className={`mt-0.5 font-extrabold text-[7.5px] sm:text-[9px] tracking-wider ${teamColor}`}>{t('ownCourtLabel')}</div>
+               <div className={`mt-0.5 font-extrabold text-[7.5px] sm:text-[9px] tracking-wider ${teamColor}`}>
+                 {t('ownCourtLabel')} {currentServe !== null && (currentServe === role ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
+               </div>
              </div>
           </div>
         )}
@@ -3463,7 +3500,7 @@ function TrackerView({
       )}
     </div>
   );
-}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false }) {
+}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false, currentServe = null }) {
   const { lang } = useContext(LanguageContext);
   const [activeTab, setActiveTab] = useState<'summary' | 'heatmap' | 'rotation' | 'logs'>('summary');
   const [selectedSet, setSelectedSet] = useState<number | 'all'>('all');
@@ -3714,7 +3751,7 @@ function TrackerView({
                   <RotPlayer num={rotations.home[1]} zone="R2" pos={roster.home[rotations.home[1]]?.position} />
                   <RotPlayer num={rotations.home[4]} zone="R5" pos={roster.home[rotations.home[4]]?.position} />
                   <RotPlayer num={rotations.home[5]} zone="R6" pos={roster.home[rotations.home[5]]?.position} />
-                  <RotPlayer num={rotations.home[0]} zone="R1" pos={roster.home[rotations.home[0]]?.position} />
+                  <RotPlayer num={rotations.home[0]} zone="R1" pos={roster.home[rotations.home[0]]?.position} isServer={currentServe === 'home'} />
                 </div>
               </div>
             )}
@@ -3729,7 +3766,7 @@ function TrackerView({
                   <RotPlayer num={rotations.away[1]} zone="R2" pos={roster.away[rotations.away[1]]?.position} />
                   <RotPlayer num={rotations.away[4]} zone="R5" pos={roster.away[rotations.away[4]]?.position} />
                   <RotPlayer num={rotations.away[5]} zone="R6" pos={roster.away[rotations.away[5]]?.position} />
-                  <RotPlayer num={rotations.away[0]} zone="R1" pos={roster.away[rotations.away[0]]?.position} />
+                  <RotPlayer num={rotations.away[0]} zone="R1" pos={roster.away[rotations.away[0]]?.position} isServer={currentServe === 'away'} />
                 </div>
               </div>
             )}
@@ -4268,10 +4305,133 @@ export default function App() {
     }
   }, [matchData.score, matchData.setsWon]);
 
+  const applyAutoLiberoSwaps = (state: any) => {
+    if (!state || !state.rotations || !state.roster) return state;
+
+    let updatedRotations = { ...state.rotations };
+    let updatedSwaps = { ...(state.liberoSwaps || {}) };
+    let updatedEvents = [...(state.events || [])];
+    let changed = false;
+
+    const getLiberoNumber = (team: string) => {
+      const roster = state.roster[team] || {};
+      const entry = Object.entries(roster).find(([_, details]) => (details as any).position === 'L');
+      return entry ? entry[0] : null;
+    };
+
+    const getMBs = (team: string) => {
+      const roster = state.roster[team] || {};
+      return Object.entries(roster)
+        .filter(([_, details]) => (details as any).position === 'MB')
+        .map(([num]) => num);
+    };
+
+    ['home', 'away'].forEach(team => {
+      const liberoNum = getLiberoNumber(team);
+      if (!liberoNum) return;
+
+      let teamRot = [...(updatedRotations[team] || [])];
+      if (teamRot.length !== 6) return;
+
+      if (!updatedSwaps[team]) updatedSwaps[team] = {};
+      
+      const mbs = getMBs(team);
+      const isServing = state.currentServe === team;
+
+      // 1. Libero to front row must swap out
+      [1, 2, 3].forEach(idx => {
+        if (teamRot[idx] === liberoNum) {
+          const zoneId = idx + 1;
+          const originalPlayer = updatedSwaps[team][zoneId] || mbs[0];
+          teamRot[idx] = originalPlayer;
+          updatedSwaps[team][zoneId] = null;
+          changed = true;
+
+          updatedEvents.push({
+            id: `auto-swap-out-${Date.now()}-${team}-${zoneId}`,
+            timestamp: Date.now(),
+            scoreAt: `[${state.score?.home || 0}-${state.score?.away || 0}]`,
+            team: team,
+            player: liberoNum,
+            skill: "libero_swap",
+            eval: "#",
+            startZone: zoneId,
+            endZone: null,
+            detail: lang === 'en' ? `Auto: Libero out, #${originalPlayer} in` : `อัตโนมัติ: ลิเบอโร่ออก, #${originalPlayer} กลับเข้าสนาม`
+          });
+        }
+      });
+
+      // 2. Receiving team: swap Libero in for any MB in back row
+      if (!isServing) {
+        [0, 5, 4].forEach(idx => {
+          const currentPlayer = teamRot[idx];
+          const isLiberoOnCourt = teamRot.includes(liberoNum);
+          if (mbs.includes(currentPlayer) && !isLiberoOnCourt) {
+            const zoneId = idx + 1;
+            updatedSwaps[team][zoneId] = currentPlayer;
+            teamRot[idx] = liberoNum;
+            changed = true;
+
+            updatedEvents.push({
+              id: `auto-swap-in-${Date.now()}-${team}-${zoneId}`,
+              timestamp: Date.now(),
+              scoreAt: `[${state.score?.home || 0}-${state.score?.away || 0}]`,
+              team: team,
+              player: currentPlayer,
+              skill: "libero_swap",
+              eval: "#",
+              startZone: zoneId,
+              endZone: null,
+              detail: lang === 'en' ? `Auto: Libero in for #${currentPlayer}` : `อัตโนมัติ: ลิเบอโร่ลงแทน #${currentPlayer}`
+            });
+          }
+        });
+      }
+      
+      // 3. Serving team: Libero cannot serve, swap out back to original MB in zone R1
+      if (isServing && teamRot[0] === liberoNum) {
+        const zoneId = 1;
+        const originalPlayer = updatedSwaps[team][zoneId] || mbs[0];
+        teamRot[0] = originalPlayer;
+        updatedSwaps[team][zoneId] = null;
+        changed = true;
+
+        updatedEvents.push({
+          id: `auto-swap-out-serve-${Date.now()}-${team}-1`,
+          timestamp: Date.now(),
+          scoreAt: `[${state.score?.home || 0}-${state.score?.away || 0}]`,
+          team: team,
+          player: liberoNum,
+          skill: "libero_swap",
+          eval: "#",
+          startZone: 1,
+          endZone: null,
+          detail: lang === 'en' ? `Auto: Libero out for server #${originalPlayer}` : `อัตโนมัติ: ลิเบอโร่ออกให้ #${originalPlayer} เสิร์ฟ`
+        });
+      }
+
+      if (changed) {
+        updatedRotations[team] = teamRot;
+      }
+    });
+
+    if (changed) {
+      return {
+        ...state,
+        rotations: updatedRotations,
+        liberoSwaps: updatedSwaps,
+        events: updatedEvents
+      };
+    }
+    return state;
+  };
+
   const syncMatchState = (nextState: any) => {
-    setMatchData(nextState);
+    const finalState = applyAutoLiberoSwaps(nextState);
+    setMatchData(finalState);
     if (activeRoom) {
-      socket.emit('update_match', { roomId: activeRoom, matchData: nextState });
+      socket.emit('update_match', { roomId: activeRoom, matchData: finalState });
     }
   };
 
@@ -5634,6 +5794,7 @@ export default function App() {
                    currentSet={matchData.score?.set || 1}
                    setScores={matchData.setScores || []}
                    hideTabs={role !== ROLES.COACH}
+                   currentServe={matchData.currentServe}
                 />
               </div>
             </div>
