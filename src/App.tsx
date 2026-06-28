@@ -275,7 +275,7 @@ function RotPlayer({ num, zone, pos }) {
   );
 }
 
-function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, onUpdateScore, onTimeout, onUpdateServe }) {
+function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, onUpdateScore, onTimeout, onUpdateServe, onReduceTimeout, events = [] }) {
   const { lang } = useContext(LanguageContext);
   const t = (key: string, params?: Record<string, string | number>) => {
     let val = (translations[lang] as any)[key] || (translations['th'] as any)[key] || key;
@@ -289,8 +289,27 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
   const isHomeServe = currentServe === 'home';
   const isAwayServe = currentServe === 'away';
 
+  const homeSubs = useMemo(() => {
+    return (events || []).filter(e => e.set === score.set && e.team === 'home' && e.skill === 'substitute').length;
+  }, [events, score.set]);
+
+  const awaySubs = useMemo(() => {
+    return (events || []).filter(e => e.set === score.set && e.team === 'away' && e.skill === 'substitute').length;
+  }, [events, score.set]);
+
   return (
-    <div className="bg-slate-900 rounded-xl p-2 border border-slate-700 shrink-0 shadow-lg relative">
+    <div className="bg-slate-900 rounded-xl p-3 pb-3.5 border border-slate-700 shrink-0 shadow-lg relative flex flex-col gap-2">
+      {/* Live Indicator Header merged from top bar */}
+      <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-[10px] font-black uppercase tracking-wider text-slate-400 px-1 shrink-0">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+          <span>{lang === 'en' ? 'Live Scoreboard' : 'สกอร์บอร์ดสด'}</span>
+        </div>
+        <div className="text-[9px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-indigo-400 font-mono tracking-widest font-black shadow-inner animate-pulse">
+          SET {score.set}
+        </div>
+      </div>
+      
       <div className="flex justify-between items-center">
         <div className="flex flex-col items-center w-5/12">
           <div className="flex items-center gap-1.5 leading-none">
@@ -310,14 +329,45 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
               </div>
             )}
             {(role === ROLES.HOME || role === ROLES.COACH) && (
-              <button 
-                onClick={() => onTimeout('home')}
-                disabled={timeouts?.home >= 2}
-                className="text-[8px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-2 py-1 rounded-md font-bold transition-colors w-full max-w-[80px]"
-              >
-                {t('timeoutCountLabel', { count: timeouts?.home || 0 })}
-              </button>
+              <div className="flex gap-1 w-full justify-center max-w-[80px]">
+                <button 
+                  onClick={() => onTimeout('home')}
+                  disabled={timeouts?.home >= 2}
+                  className="text-[8px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-2 py-1 rounded-md font-bold transition-colors flex-1"
+                >
+                  {t('timeoutCountLabel', { count: timeouts?.home || 0 })}
+                </button>
+                {timeouts?.home > 0 && (
+                  <button 
+                    onClick={() => onReduceTimeout('home')}
+                    className="text-[9px] bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-900/50 px-2 py-1 rounded-md font-black transition-colors"
+                    title={lang === 'en' ? 'Undo Timeout' : 'ย้อนเวลานอก'}
+                  >
+                    -
+                  </button>
+                )}
+              </div>
             )}
+            
+            {/* Substitution status bar */}
+            <div className="flex items-center gap-1 mt-1 justify-center">
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">
+                {lang === 'en' ? 'SUB:' : 'เปลี่ยนตัว:'}
+              </span>
+              <div className="flex gap-0.5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`w-1 h-2 rounded-sm border transition-all duration-300
+                      ${i < homeSubs 
+                        ? 'bg-indigo-500 border-indigo-400 shadow-[0_0_4px_rgba(99,102,241,0.6)]' 
+                        : 'bg-slate-950 border-slate-850'
+                      }`} 
+                  />
+                ))}
+              </div>
+              <span className="text-[8px] font-mono font-black text-slate-300 ml-1">{homeSubs}/6</span>
+            </div>
           </div>
         </div>
 
@@ -360,14 +410,45 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
               </div>
             )}
             {(role === ROLES.AWAY || role === ROLES.COACH) && (
-              <button 
-                onClick={() => onTimeout('away')}
-                disabled={timeouts?.away >= 2}
-                className="text-[8px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-2 py-1 rounded-md font-bold transition-colors w-full max-w-[80px]"
-              >
-                {t('timeoutCountLabel', { count: timeouts?.away || 0 })}
-              </button>
+              <div className="flex gap-1 w-full justify-center max-w-[80px]">
+                <button 
+                  onClick={() => onTimeout('away')}
+                  disabled={timeouts?.away >= 2}
+                  className="text-[8px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-2 py-1 rounded-md font-bold transition-colors flex-1"
+                >
+                  {t('timeoutCountLabel', { count: timeouts?.away || 0 })}
+                </button>
+                {timeouts?.away > 0 && (
+                  <button 
+                    onClick={() => onReduceTimeout('away')}
+                    className="text-[9px] bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-900/50 px-2 py-1 rounded-md font-black transition-colors"
+                    title={lang === 'en' ? 'Undo Timeout' : 'ย้อนเวลานอก'}
+                  >
+                    -
+                  </button>
+                )}
+              </div>
             )}
+            
+            {/* Substitution status bar */}
+            <div className="flex items-center gap-1 mt-1 justify-center">
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">
+                {lang === 'en' ? 'SUB:' : 'เปลี่ยนตัว:'}
+              </span>
+              <div className="flex gap-0.5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`w-1 h-2 rounded-sm border transition-all duration-300
+                      ${i < awaySubs 
+                        ? 'bg-rose-500 border-rose-400 shadow-[0_0_4px_rgba(239,68,68,0.6)]' 
+                        : 'bg-slate-950 border-slate-850'
+                      }`} 
+                  />
+                ))}
+              </div>
+              <span className="text-[8px] font-mono font-black text-slate-300 ml-1">{awaySubs}/6</span>
+            </div>
           </div>
         </div>
       </div>
@@ -3014,29 +3095,7 @@ function TrackerView({
 
   return (
     <div className="flex flex-col h-full bg-slate-900 overflow-hidden min-h-0 w-full">
-      {/* Live score header */}
-      {!hideCourts && (
-        <div className="bg-slate-950 p-2 border-b border-slate-800 flex items-center justify-between shadow-inner shrink-0 text-xs">
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-            <span className="text-[10px] sm:text-xs font-bold text-slate-400 tracking-wider">{t('liveScoreLabel')}</span>
-          </div>
-          <div className="flex items-center gap-3 bg-slate-900 px-3 py-1 rounded-full border border-slate-700 shadow">
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] sm:text-xs font-black ${role === 'home' ? 'text-indigo-400' : 'text-slate-400'}`}>{teamNames.home}</span>
-              {isHomeServe && <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full animate-ping"></span>}
-              <span className="text-xs sm:text-sm font-extrabold font-mono text-white bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{score.home}</span>
-            </div>
-            <span className="text-slate-500 font-black text-xs">:</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs sm:text-sm font-extrabold font-mono text-white bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{score.away}</span>
-              {isAwayServe && <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full animate-ping"></span>}
-              <span className={`text-[10px] sm:text-xs font-black ${role === 'away' ? 'text-rose-400' : 'text-slate-400'}`}>{teamNames.away}</span>
-            </div>
-            <div className="text-[8px] sm:text-[9px] bg-slate-800 text-amber-400 font-extrabold px-1.5 py-0.5 rounded leading-none border border-amber-900/30">SET {score.set}</div>
-          </div>
-        </div>
-      )}
+
 
       {/* Control Actions bar */}
       <div className="bg-slate-950/70 p-1.5 border-b border-slate-800 flex justify-between items-center px-2 shrink-0">
@@ -3091,71 +3150,7 @@ function TrackerView({
         </div>
       </div>
 
-      {/* Current Rally details */}
-      {!hideCourts && (
-        <div className="bg-slate-900 p-2 border-b border-slate-800 flex flex-col gap-1.5 shrink-0 z-20 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold tracking-wider flex items-center gap-1">
-              <span>{t('currentRallyLabel')}</span>
-              {isChainedScout && (
-                <span className="inline-flex items-center gap-0.5 bg-indigo-950 border border-indigo-800 text-indigo-400 text-[8px] px-1.5 py-0.5 rounded animate-pulse font-extrabold">
-                  <Link2 className="w-2.5 h-2.5" /> {t('lockNextAttack')}
-                </span>
-              )}
-            </span>
-            {tempRallyEvents.length > 0 && (
-              <button 
-                onClick={onClearRally}
-                className="text-[8px] sm:text-[9px] bg-rose-950 hover:bg-rose-900 text-rose-400 border border-rose-900/50 px-2 py-0.5 rounded transition-all active:scale-95"
-              >
-                {t('clearRallyBtn')}
-              </button>
-            )}
-          </div>
-          
-          <div className="flex gap-1.5 items-center overflow-x-auto py-1 custom-scrollbar min-h-[38px] bg-slate-950 px-2 rounded-lg border border-slate-800/80 shadow-inner">
-            {tempRallyEvents.length === 0 ? (
-              <span className="text-[9px] sm:text-[10px] text-slate-500 italic flex items-center gap-1">
-                 <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span> {t('waitFirstSkill')}
-              </span>
-            ) : (
-              tempRallyEvents.map((evt, idx) => (
-                <React.Fragment key={evt.id}>
-                  {idx > 0 && <span className="text-slate-600 font-black text-xs">➔</span>}
-                  <div className="bg-slate-800 border border-slate-700 px-2 py-1 rounded flex items-center gap-1.5 text-[10px] sm:text-[11px] shrink-0 shadow-sm">
-                    <span className="font-extrabold text-indigo-400">#{evt.player}</span>
-                    <span className="text-slate-200 font-medium">{getLocalizedSkillLabel(evt.skill, lang).split(' ')[0]}</span>
-                    <span className={`px-1.5 text-[8px] sm:text-[9px] rounded font-black text-white ${EVALUATIONS.find(e => e.id === evt.eval)?.color}`}>
-                      {evt.eval}
-                    </span>
-                  </div>
-                </React.Fragment>
-              ))
-            )}
-          </div>
-  
-          {tempRallyEvents.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mt-0.5 shrink-0">
-              <button
-                onClick={() => { onCommitRally('home'); setIsChainedScout(false); }}
-                className="py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-[10px] sm:text-[11px] rounded-lg border border-indigo-500 shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all px-1"
-              >
-                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden sm:inline">{t('rallyPointWon').replace('{team}', teamNames.home)}</span>
-                <span className="sm:hidden">{t('rallyPointWonShort').replace('{team}', teamNames.home)}</span>
-              </button>
-              <button
-                onClick={() => { onCommitRally('away'); setIsChainedScout(false); }}
-                className="py-1.5 sm:py-2 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-[10px] sm:text-[11px] rounded-lg border border-rose-500 shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all px-1"
-              >
-                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                <span className="hidden sm:inline">{t('rallyPointWon').replace('{team}', teamNames.away)}</span>
-                <span className="sm:hidden">{t('rallyPointWonShort').replace('{team}', teamNames.away)}</span>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+
 
       {/* Main Interactive Screen layout: Left is Court, Right is Action Panel */}
       <div className="flex-1 flex flex-row overflow-hidden relative min-h-0 w-full gap-1.5 p-1 sm:p-2">
@@ -4715,6 +4710,30 @@ export default function App() {
     syncMatchState(nextState);
   };
 
+  const handleReduceTimeout = (team) => {
+    const currentTO = matchData.timeouts?.[team] || 0;
+    if (currentTO <= 0) return;
+
+    const nextState = {
+      ...matchData,
+      timeouts: {
+        ...matchData.timeouts,
+        [team]: currentTO - 1
+      },
+      events: (() => {
+        const events = [...(matchData.events || [])];
+        for (let i = events.length - 1; i >= 0; i--) {
+          if (events[i].team === team && events[i].skill === 'timeout') {
+            events.splice(i, 1);
+            break;
+          }
+        }
+        return events;
+      })()
+    };
+    syncMatchState(nextState);
+  };
+
   const handleSubstitution = (team, targetNum, subNum) => {
     const updatedRot = matchData.rotations[team].map(num => num === targetNum ? subNum : num);
     const updatedRoster = { ...matchData.roster[team] };
@@ -5550,6 +5569,8 @@ export default function App() {
                 onUpdateScore={handleUpdateScore} 
                 onTimeout={handleTimeout}
                 onUpdateServe={handleUpdateServe}
+                onReduceTimeout={handleReduceTimeout}
+                events={matchData.events}
               />
               
               <div className="flex-1 min-h-0 bg-slate-900 rounded-xl border border-slate-800 shadow-inner p-1.5">
