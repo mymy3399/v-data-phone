@@ -3210,17 +3210,22 @@ function TrackerView({
                  {t('opponentCourtLabel')} {currentServe !== null && (currentServe === (role === 'home' ? 'away' : 'home') ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
                </div>
                <div className="w-full h-full grid grid-cols-3 grid-rows-[2fr_1fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
-                 {OPP_COURT_ZONES.map(zone => (
-                   <button
-                     key={`opp-${zone.id}`}
-                     onClick={() => handleZoneClick(zone.id, true)}
-                     className={`border border-white/20 flex items-center justify-center text-xs sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
-                       ${currentEvent.endZone === zone.id ? 'bg-rose-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : 'text-white/20'}
-                     `}
-                   >
-                     {zone.label}
-                   </button>
-                 ))}
+                 {OPP_COURT_ZONES.map(zone => {
+                   const oppIsFrontRow = [2, 3, 4].includes(zone.id);
+                   const isOppSelected = currentEvent.endZone === zone.id;
+                   return (
+                     <button
+                       key={`opp-${zone.id}`}
+                       onClick={() => handleZoneClick(zone.id, true)}
+                       style={{ backgroundColor: isOppSelected ? undefined : oppIsFrontRow ? 'rgba(60,20,0,0.38)' : 'rgba(255,220,180,0.10)' }}
+                       className={`border border-white/20 flex items-center justify-center text-xs sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
+                         ${isOppSelected ? 'bg-rose-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : 'text-white/20'}
+                       `}
+                     >
+                       {zone.label}
+                     </button>
+                   );
+                 })}
                  <div className="absolute bottom-[33.33%] left-0 w-full border-b border-white/40 pointer-events-none"></div>
                </div>
              </div>
@@ -3244,6 +3249,7 @@ function TrackerView({
                      <button
                        key={`own-${zone.id}`}
                        onClick={() => handleZoneClick(zone.id, false)}
+                       style={{ backgroundColor: isSelected ? undefined : [2, 3, 4].includes(zone.id) ? 'rgba(60,20,0,0.38)' : 'rgba(255,220,180,0.10)' }}
                        className={`border border-white/20 flex flex-col items-center justify-center transition-all relative group cursor-pointer hover:bg-white/10
                          ${isSelected ? 'bg-emerald-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : ''}
                        `}
@@ -5414,6 +5420,39 @@ export default function App() {
           <div style="text-align: center; font-size: 13px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 2px;">Official Match Score</div>
           <div class="score-card">${homeName} ${matchData.score.home} : ${matchData.score.away} ${awayName}</div>
           <div style="text-align: center; font-size: 14px; font-weight: 900; color: #4f46e5; background: #e0e7ff; display: inline-block; padding: 4px 16px; border-radius: 20px; margin: 0 auto; display: block; width: fit-content;">SET ${matchData.score.set}</div>
+
+          ${(() => {
+            const setScores = matchData.setScores || [];
+            if (setScores.length === 0) return '';
+            const homeSetWins = setScores.filter(s => s.home > s.away).length;
+            const awaySetWins = setScores.filter(s => s.away > s.home).length;
+            const winner = homeSetWins > awaySetWins ? homeName : awaySetWins > homeSetWins ? awayName : null;
+            const setRows = setScores.map(s => `
+              <tr>
+                <td style="padding: 6px 12px; text-align: center; font-weight: 800; color: #4f46e5;">Set ${s.setNum}</td>
+                <td style="padding: 6px 12px; text-align: center; font-weight: 900; font-size: 16px; ${s.home > s.away ? 'color:#059669;' : 'color:#64748b;'}">${s.home}</td>
+                <td style="padding: 6px 12px; text-align: center; font-size: 11px; color:#94a3b8;">vs</td>
+                <td style="padding: 6px 12px; text-align: center; font-weight: 900; font-size: 16px; ${s.away > s.home ? 'color:#059669;' : 'color:#64748b;'}">${s.away}</td>
+              </tr>
+            `).join('');
+            return `
+              <div style="margin-top: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; max-width: 420px; margin-left: auto; margin-right: auto;">
+                <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 2px; text-align: center; margin-bottom: 10px;">Per-Set Results</div>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr style="border-bottom: 2px solid #e2e8f0;">
+                      <th style="padding: 5px 12px; font-size: 11px; color: #64748b; text-align: center;">Set</th>
+                      <th style="padding: 5px 12px; font-size: 11px; color: #4f46e5; text-align: center;">${homeName}</th>
+                      <th></th>
+                      <th style="padding: 5px 12px; font-size: 11px; color: #e11d48; text-align: center;">${awayName}</th>
+                    </tr>
+                  </thead>
+                  <tbody>${setRows}</tbody>
+                </table>
+                ${winner ? `<div style="margin-top: 10px; text-align: center; font-size: 13px; font-weight: 900; color: #059669; background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 6px 16px;">🏆 Match Winner: ${winner} (${homeSetWins} : ${awaySetWins})</div>` : ''}
+              </div>
+            `;
+          })()}
         </div>
 
         <!-- HOME TEAM SECTION -->
