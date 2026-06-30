@@ -29,12 +29,12 @@ const VolleyballIcon = ({ className }: { className: string }) => (
 const ROLES = { UNASSIGNED: 'unassigned', HOME: 'home', AWAY: 'away', COACH: 'coach' };
 
 const SKILLS = [
-  { id: 'serve', label: 'เสิร์ฟ (S)' }, 
-  { id: 'receive', label: 'รับเสิร์ฟ (R)' },
-  { id: 'set', label: 'เซต (E)' }, 
-  { id: 'attack', label: 'ตบ (A)' },
-  { id: 'block', label: 'บล็อก (B)' }, 
-  { id: 'dig', label: 'รับตบ (D)' }
+  { id: 'serve',   label: 'เสิร์ฟ (S)',   color: 'bg-amber-600 border-amber-500 text-white',   colorActive: 'bg-amber-400 border-amber-300 text-slate-900' },
+  { id: 'receive', label: 'รับเสิร์ฟ (R)', color: 'bg-sky-700 border-sky-600 text-white',       colorActive: 'bg-sky-400 border-sky-300 text-slate-900' },
+  { id: 'set',     label: 'เซต (E)',       color: 'bg-violet-700 border-violet-600 text-white',  colorActive: 'bg-violet-400 border-violet-300 text-slate-900' },
+  { id: 'attack',  label: 'ตบ (A)',        color: 'bg-rose-700 border-rose-600 text-white',      colorActive: 'bg-rose-400 border-rose-300 text-white' },
+  { id: 'block',   label: 'บล็อก (B)',     color: 'bg-emerald-700 border-emerald-600 text-white', colorActive: 'bg-emerald-400 border-emerald-300 text-slate-900' },
+  { id: 'dig',     label: 'รับตบ (D)',     color: 'bg-orange-700 border-orange-600 text-white',  colorActive: 'bg-orange-400 border-orange-300 text-slate-900' }
 ];
 
 const EVALUATIONS = [
@@ -3279,28 +3279,13 @@ function TrackerView({
         <div className={`bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-all duration-300
           ${hideCourts 
             ? 'flex-1 w-full p-2 sm:p-4' 
-            : isActionPanelOpen 
-              ? 'relative w-[185px] xs:w-[210px] sm:w-[220px] lg:w-[240px] opacity-100 p-1.5 sm:p-3' 
-              : 'w-0 h-0 overflow-hidden opacity-0 p-0 border-none'
+            : 'relative w-[185px] xs:w-[210px] sm:w-[220px] lg:w-[240px] p-1.5 sm:p-3'
           }
         `}>
-          {/* Toggle Panel Button sticking on the left side of the panel (Desktop/Tablet sibling toggle) */}
-          {!hideCourts && (
-            <button 
-              onClick={() => setIsActionPanelOpen(!isActionPanelOpen)}
-              className="absolute top-1/2 -left-8 transform -translate-y-1/2 w-8 h-12 bg-slate-900 border-y border-l border-slate-700 rounded-l-xl hidden sm:flex items-center justify-center text-amber-400 hover:text-amber-300 shadow-[-4px_0_10px_rgba(0,0,0,0.3)] z-40 transition-colors"
-              title={isActionPanelOpen ? t('hidePanelTitle') : t('showPanelTitle')}
-            >
-              {isActionPanelOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-            </button>
-          )}
 
           {/* Header title inside panel */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-1 sm:pb-2 mb-1.5 sm:mb-3">
             <span className="text-[9px] sm:text-[10px] font-black text-amber-400 uppercase tracking-widest">{t('statEntryPanelTitle')}</span>
-            <button onClick={() => setIsActionPanelOpen(false)} className="text-slate-500 hover:text-white p-1 bg-slate-800 rounded-md sm:hidden">
-              <X className="w-3 h-3" />
-            </button>
           </div>
 
           <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar gap-1.5 sm:gap-3 text-[9px] sm:text-[10px] pr-0.5">
@@ -3317,17 +3302,19 @@ function TrackerView({
                   const num = players[idx];
                   const zoneNum = idx + 1;
                   const details = (teamRoster as Record<string, any>)[num] || { name: '-', position: '-' };
+                  const shortName = details.name && details.name !== '-' ? details.name.split(' ')[0].slice(0, 7) : null;
                   return (
                     <button
                       key={`p-panel-${zoneNum}-${num}`}
                       onClick={() => setCurrentEvent(prev => ({ ...prev, player: num, startZone: zoneNum }))}
-                      className={`py-1 sm:py-2 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
+                      className={`py-1.5 sm:py-2.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
                         ${currentEvent.player === num ? 'bg-amber-500 border-amber-400 text-slate-900 ring-2 ring-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}
                       `}
                     >
                       <span className="absolute top-0.5 left-1 text-[5px] sm:text-[6px] font-black opacity-40">R{zoneNum}</span>
                       <span className="font-black text-xs sm:text-sm leading-none mt-1 sm:mt-1.5">{num}</span>
-                      <span className="text-[5px] sm:text-[6px] opacity-80 uppercase mt-0.5 font-bold">({details.position})</span>
+                      {shortName && <span className="text-[5px] sm:text-[7px] opacity-90 mt-0.5 font-bold truncate max-w-full px-0.5">{shortName}</span>}
+                      <span className="text-[5px] sm:text-[6px] opacity-70 uppercase font-bold">({details.position})</span>
                     </button>
                   )
                 })}
@@ -3344,8 +3331,8 @@ function TrackerView({
                   <button
                     key={skill.id}
                     onClick={() => setCurrentEvent(prev => ({ ...prev, skill: skill.id }))}
-                    className={`py-1.5 sm:py-2.5 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[8px] sm:text-[10px]
-                      ${currentEvent.skill === skill.id ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg ring-1 ring-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}
+                    className={`py-2 sm:py-3 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[8px] sm:text-[10px]
+                      ${currentEvent.skill === skill.id ? (skill.colorActive + ' ring-2 ring-white shadow-lg') : (skill.color + ' opacity-80 hover:opacity-100')}
                     `}
                   >
                     <span className="hidden sm:inline">{getLocalizedSkillLabel(skill.id, lang)}</span>
@@ -3384,26 +3371,6 @@ function TrackerView({
         </div>
       </div>
 
-      {/* Floating Toggle Handle for Action Panel when it is fully CLOSED (sm and up) */}
-      {!hideCourts && !isActionPanelOpen && (
-        <button 
-          onClick={() => setIsActionPanelOpen(true)}
-          className="absolute top-1/2 right-2 transform -translate-y-1/2 w-8 h-12 bg-slate-900 border border-slate-700 rounded-l-xl hidden sm:flex items-center justify-center text-amber-400 hover:text-amber-300 shadow-[-4px_0_10px_rgba(0,0,0,0.4)] z-50 transition-colors"
-          title={t('showPanelTitle')}
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-      )}
-
-      {/* Floating Toggle Button for Mobile overlay */}
-      {!hideCourts && (
-        <button 
-          onClick={() => setIsActionPanelOpen(!isActionPanelOpen)}
-          className="absolute bottom-4 right-4 bg-slate-800 hover:bg-slate-700 text-amber-400 p-3 rounded-full border border-slate-600 shadow-2xl z-50 flex sm:hidden items-center justify-center active:scale-90 transition-transform"
-        >
-          {isActionPanelOpen ? <X className="w-5 h-5" /> : <ClipboardList className="w-5 h-5" />}
-        </button>
-      )}
 
       {subModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3 backdrop-blur-sm">
