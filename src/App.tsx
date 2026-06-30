@@ -3057,7 +3057,40 @@ function TrackerView({
   const [subModalOpen, setSubModalOpen] = useState(false);
   const [foulModalOpen, setFoulModalOpen] = useState(false);
   const [isActionPanelOpen, setIsActionPanelOpen] = useState(true);
+  const [rightWidth, setRightWidth] = useState(220);
   
+  const handleRightMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = rightWidth;
+    const onMove = (mv: MouseEvent) => {
+      const delta = startX - mv.clientX; // drag left = wider
+      setRightWidth(Math.max(180, Math.min(420, startW + delta)));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const handleRightTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const startX = touch.clientX;
+    const startW = rightWidth;
+    const onMove = (mv: TouchEvent) => {
+      const delta = startX - mv.touches[0].clientX;
+      setRightWidth(Math.max(180, Math.min(420, startW + delta)));
+    };
+    const onEnd = () => {
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('touchend', onEnd);
+  };
+
   const [isChainedScout, setIsChainedScout] = useState(false);
 
   const [currentEvent, setCurrentEvent] = useState<any>({
@@ -3275,15 +3308,26 @@ function TrackerView({
           </div>
         )}
 
-        {/* RIGHT: Action Keying Panel placed directly on the right side of courts */}
-        <div className={`bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-all duration-300
-          ${hideCourts 
-            ? 'flex-1 w-full p-2 sm:p-4' 
-            : 'relative w-[185px] xs:w-[210px] sm:w-[220px] lg:w-[240px] p-1.5 sm:p-3'
-          }
-        `}>
+        {/* RIGHT: Splitter handle + Action Keying Panel */}
 
-          {/* Header title inside panel */}
+        {/* Splitter handle on left edge of right panel */}
+        {!hideCourts && (
+          <div
+            className="hidden md:flex w-2.5 hover:w-3 bg-slate-900 border-x border-slate-800 hover:bg-indigo-600 hover:border-indigo-500 cursor-col-resize self-stretch transition-all duration-150 relative items-center justify-center shrink-0 group select-none z-40"
+            onMouseDown={handleRightMouseDown}
+            onTouchStart={handleRightTouchStart}
+          >
+            <div className="w-1 h-8 rounded-full bg-slate-700 group-hover:bg-indigo-300 transition-colors" />
+          </div>
+        )}
+
+        {/* RIGHT: Action Keying Panel placed directly on the right side of courts */}
+        <div
+          className={`bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-none
+            ${hideCourts ? 'flex-1 w-full p-2 sm:p-4' : 'p-1.5 sm:p-3'}
+          `}
+          style={hideCourts ? undefined : { width: `${rightWidth}px`, minWidth: '180px', maxWidth: '420px' }}
+        >          {/* Header title inside panel */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-1 sm:pb-2 mb-1.5 sm:mb-3">
             <span className="text-[9px] sm:text-[10px] font-black text-amber-400 uppercase tracking-widest">{t('statEntryPanelTitle')}</span>
           </div>
