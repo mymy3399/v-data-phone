@@ -5001,6 +5001,12 @@ export default function App() {
     }
   }, [matchData.score, matchData.setsWon]);
 
+  useEffect(() => {
+    if (matchData.status === 'finished') {
+      setActiveMobileView('stats');
+    }
+  }, [matchData.status]);
+
   const applyAutoLiberoSwaps = (state: any) => {
     if (!state || !state.rotations || !state.roster || !autoLiberoSwapEnabled) return state;
 
