@@ -5308,10 +5308,8 @@ export default function App() {
   };
 
   const handleExportPDF = () => {
-
     // Helper: Skills Overall Table
-    const compileTeamStatsHtml = (team) => {
-      const tEvents = matchData.events.filter(e => e.team === team);
+    const compileTeamStatsHtml = (team, tEvents) => {
       return SKILLS.map(skill => {
         const sEvents = tEvents.filter(e => e.skill === skill.id);
         const total = sEvents.length;
@@ -5325,22 +5323,22 @@ export default function App() {
         
         return `
           <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${getLocalizedSkillLabel(skill.id, lang)}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${total}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #059669; font-weight: 800;">${effPercent}%</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #e11d48; font-weight: bold;">${errPercent}%</td>
+            <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${getLocalizedSkillLabel(skill.id, lang)}</td>
+            <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-family: monospace;">${total}</td>
+            <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #059669; font-weight: 800;">${effPercent}%</td>
+            <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #e11d48; font-weight: bold;">${errPercent}%</td>
           </tr>
         `;
       }).join('');
     };
 
     // Helper: Heatmap Attack Zones Court Graphic
-    const compileHeatmapHtml = (team) => {
+    const compileHeatmapHtml = (team, tEvents) => {
       const strengths = Array(7).fill(0);
       const weaknesses = Array(7).fill(0);
       let totalZones = 0;
 
-      matchData.events.forEach(evt => {
+      tEvents.forEach(evt => {
         if (evt.team === team && evt.endZone >= 1 && evt.endZone <= 6) {
           const isSuccess = evt.eval === '#' || evt.eval === '+';
           const isError = evt.eval === '=' || evt.eval === '/';
@@ -5356,7 +5354,7 @@ export default function App() {
       const zoneHtml = [5, 6, 1, 4, 3, 2].map(zone => {
         const s = strengths[zone] || 0;
         const w = weaknesses[zone] || 0;
-        const totalInZone = matchData.events.filter(e => e.team === team && e.endZone === zone).length;
+        const totalInZone = tEvents.filter(e => e.team === team && e.endZone === zone).length;
         const distPercent = totalZones > 0 ? ((totalInZone / totalZones) * 100).toFixed(0) : '0';
 
         // Color cell based on performance: green for success, red for error, slate for neutral
@@ -5420,10 +5418,10 @@ export default function App() {
     };
 
     // Helper: Setter Rotation 6-Courts Graphic Grid
-    const compileRotationHtml = (team) => {
+    const compileRotationHtml = (team, tEvents) => {
       let courtsHtml = '';
       [1, 6, 5, 2, 3, 4].forEach(zone => {
-        const rotEvents = matchData.events.filter(e => e.team === team && (team === 'home' ? e.setterZoneHome === zone : e.setterZoneAway === zone));
+        const rotEvents = tEvents.filter(e => e.team === team && (team === 'home' ? e.setterZoneHome === zone : e.setterZoneAway === zone));
         const total = rotEvents.length;
         const wins = rotEvents.filter(e => e.eval === '#' || e.eval === '+').length;
         const errors = rotEvents.filter(e => e.eval === '=' || e.eval === '/').length;
@@ -5435,7 +5433,7 @@ export default function App() {
           let cellBg = isSetter ? '#f59e0b' : '#f1f5f9';
           let cellText = isSetter ? '#ffffff' : '#64748b';
           let cellFontWeight = isSetter ? '900' : '500';
-          let cellBorder = isSetter ? '#d97706' : '#cbd5e1';
+          let cellBorder = isSetter ? '#cbd5e1' : '#e2e8f0';
           let cellTextContent = isSetter ? 'SET' : `R${z}`;
           
           return `
@@ -5506,16 +5504,173 @@ export default function App() {
       `;
     };
 
+    // Helper: Individual Player Stats Table
+    const compilePlayerStatsHtml = (team, tEvents) => {
+      const teamRoster = matchData.roster?.[team] || {};
+      const stats = Object.entries(teamRoster).map(([num, details]: [string, any]) => {
+        const pEvents = tEvents.filter(e => e.player === num);
+        const totalActions = pEvents.length;
+        const perfect = pEvents.filter(e => e.eval === '#').length;
+        const good = pEvents.filter(e => e.eval === '+').length;
+        const error = pEvents.filter(e => e.eval === '=').length;
+        const blocked = pEvents.filter(e => e.eval === '/').length;
+        
+        const successPercent = totalActions > 0 ? (((perfect + good) / totalActions) * 100).toFixed(0) : '0';
+        const errorPercent = totalActions > 0 ? (((error + blocked) / totalActions) * 100).toFixed(0) : '0';
+        
+        const skillBreakdowns = SKILLS.map(s => {
+          const count = pEvents.filter(e => e.skill === s.id).length;
+          return `<td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-size: 12px;">${count > 0 ? count : '-'}</td>`;
+        }).join('');
+
+        return `
+          <tr>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-weight: bold; font-size: 12px;">${num}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 12px;">${details.name || '-'}</td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
+              <span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #475569;">${details.position || '-'}</span>
+            </td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-weight: bold; font-family: monospace; font-size: 12px;">${totalActions}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 12px;">
+              ${totalActions > 0 
+                ? `<span style="color: #059669; font-weight: 800;">+${successPercent}%</span> / <span style="color: #e11d48; font-weight: bold;">-${errorPercent}%</span>`
+                : `<span style="color: #94a3b8;">-</span>`
+              }
+            </td>
+            ${skillBreakdowns}
+          </tr>
+        `;
+      }).join('');
+
+      const skillHeaders = SKILLS.map(s => `
+        <th style="padding: 8px; text-align: center; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${s.label.split(' ')[0]}</th>
+      `).join('');
+
+      return `
+        <div style="margin-top: 25px; overflow-x: auto;">
+          <div style="font-size: 14px; font-weight: 800; margin-bottom: 12px; color: #334155; text-transform: uppercase; letter-spacing: 0.5px;">📊 ${t('playerStatsTitle')}</div>
+          <table style="width: 100%; border-collapse: collapse; min-w: 600px;">
+            <thead>
+              <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
+                <th style="padding: 8px; text-align: center; width: 40px; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${t('playerNo')}</th>
+                <th style="padding: 8px; text-align: left; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${t('playerName')}</th>
+                <th style="padding: 8px; text-align: center; width: 60px; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${t('playerPos')}</th>
+                <th style="padding: 8px; text-align: center; width: 85px; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${t('totalActions')}</th>
+                <th style="padding: 8px; text-align: center; width: 120px; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">+/-% Ratio</th>
+                ${skillHeaders}
+              </tr>
+            </thead>
+            <tbody>
+              ${stats}
+            </tbody>
+          </table>
+        </div>
+      `;
+    };
+
     const homeName = matchData.teamNames?.home || "HOME";
     const awayName = matchData.teamNames?.away || "AWAY";
+
+    // 1. Generate Match Overview Section
+    const homeAllEvents = matchData.events.filter(e => e.team === 'home');
+    const awayAllEvents = matchData.events.filter(e => e.team === 'away');
+
+    // 2. Generate Set-by-Set Section content
+    let setsContentHtml = '';
+    const currentTotalSets = matchData.score.set;
+
+    for (let setNum = 1; setNum <= currentTotalSets; setNum++) {
+      const setEvents = matchData.events.filter(e => e.set === setNum);
+      const homeSetEvents = setEvents.filter(e => e.team === 'home');
+      const awaySetEvents = setEvents.filter(e => e.team === 'away');
+      const compScore = matchData.setScores?.find(s => s.setNum === setNum);
+      const scoreDisplay = compScore ? `${compScore.home} : ${compScore.away}` : '';
+
+      setsContentHtml += `
+        <div class="section-box" style="margin-top: 45px; page-break-before: always; border-top: 6px solid #4b5563;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 25px;">
+            <div style="font-size: 24px; font-weight: 900; color: #1e293b; letter-spacing: -0.5px;">
+              ${lang === 'en' ? `SET ${setNum} DETAILED ANALYSIS` : `วิเคราะห์สถิติอย่างละเอียด เซต ${setNum}`}
+            </div>
+            ${scoreDisplay ? `
+              <div style="font-size: 20px; font-weight: 950; color: #4f46e5; background: #e0e7ff; padding: 4px 18px; border-radius: 20px; font-family: monospace;">
+                ${scoreDisplay}
+              </div>
+            ` : ''}
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 40px;">
+            <!-- HOME SET STATS -->
+            <div>
+              <div style="font-size: 18px; font-weight: 900; color: #4f46e5; border-bottom: 2px dashed #e2e8f0; padding-bottom: 6px; margin-bottom: 15px;">
+                ${homeName} (HOME) - Set ${setNum}
+              </div>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                  <tr>
+                    <th style="text-align: left; padding: 8px 10px;">${lang === 'en' ? 'Skill' : 'ทักษะ'}</th>
+                    <th style="padding: 8px 10px; width: 80px;">${lang === 'en' ? 'Total' : 'จำนวน'}</th>
+                    <th style="padding: 8px 10px; width: 100px;">${lang === 'en' ? '% Good' : '% ดี'}</th>
+                    <th style="padding: 8px 10px; width: 100px;">${lang === 'en' ? '% Error' : '% เสีย'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${compileTeamStatsHtml('home', homeSetEvents)}
+                </tbody>
+              </table>
+              <div style="display: flex; gap: 20px; margin-top: 15px; align-items: flex-start;">
+                <div style="flex: 1.1; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+                  <div style="font-size: 13px; font-weight: 800; color: #0ea5e9; text-align: center; margin-bottom: 8px;">${lang === 'en' ? 'Attack Zones' : 'ทิศทางการโจมตี'}</div>
+                  ${compileHeatmapHtml('home', homeSetEvents)}
+                </div>
+                <div style="flex: 1.9; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+                  <div style="font-size: 13px; font-weight: 800; color: #8b5cf6; text-align: center; margin-bottom: 8px;">${lang === 'en' ? 'Setter Rotations' : 'ประสิทธิภาพหน้าเซต'}</div>
+                  ${compileRotationHtml('home', homeSetEvents)}
+                </div>
+              </div>
+            </div>
+
+            <!-- AWAY SET STATS -->
+            <div style="margin-top: 25px;">
+              <div style="font-size: 18px; font-weight: 900; color: #e11d48; border-bottom: 2px dashed #e2e8f0; padding-bottom: 6px; margin-bottom: 15px;">
+                ${awayName} (AWAY) - Set ${setNum}
+              </div>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                  <tr>
+                    <th style="text-align: left; padding: 8px 10px;">${lang === 'en' ? 'Skill' : 'ทักษะ'}</th>
+                    <th style="padding: 8px 10px; width: 80px;">${lang === 'en' ? 'Total' : 'จำนวน'}</th>
+                    <th style="padding: 8px 10px; width: 100px;">${lang === 'en' ? '% Good' : '% ดี'}</th>
+                    <th style="padding: 8px 10px; width: 100px;">${lang === 'en' ? '% Error' : '% เสีย'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${compileTeamStatsHtml('away', awaySetEvents)}
+                </tbody>
+              </table>
+              <div style="display: flex; gap: 20px; margin-top: 15px; align-items: flex-start;">
+                <div style="flex: 1.1; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+                  <div style="font-size: 13px; font-weight: 800; color: #0ea5e9; text-align: center; margin-bottom: 8px;">${lang === 'en' ? 'Attack Zones' : 'ทิศทางการโจมตี'}</div>
+                  ${compileHeatmapHtml('away', awaySetEvents)}
+                </div>
+                <div style="flex: 1.9; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+                  <div style="font-size: 13px; font-weight: 800; color: #8b5cf6; text-align: center; margin-bottom: 8px;">${lang === 'en' ? 'Setter Rotations' : 'ประสิทธิภาพหน้าเซต'}</div>
+                  ${compileRotationHtml('away', awaySetEvents)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     const printContent = `
       <html>
       <head>
-        <title>V Project (beta) - Detailed Scout Report [\${activeRoom}]</title>
+        <title>V Project - Detailed Match Analytical Report [${activeRoom || 'Scout'}]</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
-          body { font-family: 'Inter', Arial, sans-serif; padding: 30px; color: #0f172a; line-height: 1.6; background: #fff; }
+          @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700;800&family=Inter:wght@400;500;700;900&display=swap');
+          body { font-family: 'Sarabun', 'Inter', Arial, sans-serif; padding: 30px; color: #0f172a; line-height: 1.6; background: #fff; }
           .header { border-bottom: 3px solid #334155; padding-bottom: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
           .logo { font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -1px; }
           .logo span { color: #f59e0b; font-size: 14px; vertical-align: super; }
@@ -5536,6 +5691,7 @@ export default function App() {
           @media print {
             .no-print { display: none !important; }
             body { padding: 20px; background: #ffffff; }
+            .section-box { box-shadow: none !important; }
           }
           .print-header {
             display: flex;
@@ -5549,7 +5705,6 @@ export default function App() {
             gap: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             border: 1px solid #334155;
-            font-family: 'Sarabun', 'Inter', Arial, sans-serif;
           }
           .print-tip {
             font-size: 13px;
@@ -5574,13 +5729,13 @@ export default function App() {
       </head>
       <body>
         <div class="no-print print-header">
-          ${lang === "en" ? '💡 Tip: You can print or save this summary as PDF by clicking the print button on the right, or press Ctrl+P / Cmd+P' : '💡 คำแนะนำ: คุณสามารถพิมพ์หรือบันทึกสรุปผลนี้เป็น PDF ได้โดยกดปุ่มพิมพ์ด้านขวา หรือกด Ctrl+P / Cmd+P'}
-          ${lang === "en" ? 'Print / Save as PDF' : 'พิมพ์ / บันทึกเป็น PDF'}
+          <span class="print-tip">${lang === "en" ? '💡 Tip: You can print or save this HTML report as a PDF by clicking the button, or press Ctrl+P / Cmd+P' : '💡 คำแนะนำ: คุณสามารถพิมพ์หรือบันทึกรายงานสรุปผล HTML นี้เป็น PDF ได้โดยกดปุ่มพิมพ์ หรือกด Ctrl+P / Cmd+P'}</span>
+          <button onclick="window.print()" class="print-btn">${lang === "en" ? 'Print / Save as PDF' : 'พิมพ์ / บันทึกเป็น PDF'}</button>
         </div>
 
         <div class="header">
           <div class="logo">V Project <span>beta</span></div>
-          <div style="font-size: 12px; text-align: right; color: #64748b; font-weight: 500;">LIVE ROOM: ${activeRoom}</div>
+          <div style="font-size: 12px; text-align: right; color: #64748b; font-weight: 500;">LIVE ROOM: ${activeRoom || 'Local Match'}</div>
         </div>
 
         <div class="match-meta">
@@ -5622,67 +5777,84 @@ export default function App() {
           })()}
         </div>
 
-        <!-- HOME TEAM SECTION -->
+        <div style="text-align: center; font-size: 26px; font-weight: 950; margin: 40px 0 20px 0; color: #0f172a; border-bottom: 3px double #cbd5e1; padding-bottom: 10px;">
+          ${lang === 'en' ? 'PART 1: OVERALL MATCH SUMMARY' : 'ส่วนที่ 1: สรุปผลสถิติภาพรวมตลอดการแข่งขัน'}
+        </div>
+
+        <!-- OVERALL HOME TEAM SECTION -->
         <div class="section-box" style="border-top: 6px solid #4f46e5;">
-          <div class="team-title" style="color: #4f46e5;">${homeName} (HOME)</div>
+          <div class="team-title" style="color: #4f46e5;">${homeName} (HOME) - Match Overall Summary</div>
           
-          ${lang === "en" ? 'Skills Overview' : 'ภาพรวมทักษะ (Skills Overview)'}
-          <table>
+          <div class="sub-title">${lang === "en" ? 'Skills Performance Overview' : 'สถิติประสิทธิภาพการเล่นภาพรวม (Skills Performance Overview)'}</div>
+          <table style="margin-bottom: 25px;">
             <thead>
               <tr>
-                ${lang === "en" ? '<th style="text-align: left;">Skill</th>' : '<th style="text-align: left;">ทักษะ (Skill)</th>'}
-                ${lang === "en" ? '<th>Total</th>' : '<th>จำนวน (Total)</th>'}
-                ${lang === "en" ? '<th>% Good (+)</th>' : '<th>% ดี (+)</th>'}
-                ${lang === "en" ? '<th>% Error (-)</th>' : '<th>% เสีย (-)</th>'}
+                <th style="text-align: left; padding: 8px 10px;">${lang === "en" ? 'Skill' : 'ทักษะ (Skill)'}</th>
+                <th style="padding: 8px 10px; width: 100px;">${lang === "en" ? 'Total' : 'จำนวน (Total)'}</th>
+                <th style="padding: 8px 10px; width: 120px;">${lang === "en" ? '% Good (+)' : '% ดี (+)'}</th>
+                <th style="padding: 8px 10px; width: 120px;">${lang === "en" ? '% Error (-)' : '% เสีย (-)'}</th>
               </tr>
             </thead>
             <tbody>
-              ${compileTeamStatsHtml('home')}
+              ${compileTeamStatsHtml('home', homeAllEvents)}
             </tbody>
           </table>
 
-          <div class="grid-2" style="display: flex; gap: 20px; margin-top: 25px; align-items: flex-start;">
+          <!-- Home Player Stats Table -->
+          ${compilePlayerStatsHtml('home', homeAllEvents)}
+
+          <div class="grid-2" style="display: flex; gap: 20px; margin-top: 30px; align-items: flex-start; page-break-inside: avoid;">
             <div class="grid-col" style="flex: 1.1; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-              ${lang === "en" ? '<div class="sub-title" style="color: #0ea5e9; text-align: center; margin-bottom: 8px;">Attack Zones</div>' : '<div class="sub-title" style="color: #0ea5e9; text-align: center; margin-bottom: 8px;">Attack Zones (ทิศทางการโจมตี)</div>'}
-              ${compileHeatmapHtml('home')}
+              <div class="sub-title" style="color: #0ea5e9; text-align: center; margin-bottom: 8px;">${lang === "en" ? 'Attack Zones' : 'Attack Zones (ทิศทางการโจมตี)'}</div>
+              ${compileHeatmapHtml('home', homeAllEvents)}
             </div>
             <div class="grid-col" style="flex: 1.9; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-              ${lang === "en" ? '<div class="sub-title" style="color: #8b5cf6; text-align: center; margin-bottom: 8px;">Setter Rotations</div>' : '<div class="sub-title" style="color: #8b5cf6; text-align: center; margin-bottom: 8px;">Setter Rotations (ประสิทธิภาพหน้าเซต)</div>'}
-              ${compileRotationHtml('home')}
+              <div class="sub-title" style="color: #8b5cf6; text-align: center; margin-bottom: 8px;">${lang === "en" ? 'Setter Rotations' : 'Setter Rotations (ประสิทธิภาพหน้าเซต)'}</div>
+              ${compileRotationHtml('home', homeAllEvents)}
             </div>
           </div>
         </div>
 
-        <!-- AWAY TEAM SECTION -->
-        <div class="section-box" style="border-top: 6px solid #e11d48; margin-top: 40px; page-break-inside: avoid;">
-          <div class="team-title" style="color: #e11d48;">${awayName} (AWAY)</div>
+        <!-- OVERALL AWAY TEAM SECTION -->
+        <div class="section-box" style="border-top: 6px solid #e11d48; margin-top: 40px; page-break-before: always;">
+          <div class="team-title" style="color: #e11d48;">${awayName} (AWAY) - Match Overall Summary</div>
           
-          <div class="sub-title">Skills Overview</div>
-          <table>
+          <div class="sub-title">${lang === "en" ? 'Skills Performance Overview' : 'สถิติประสิทธิภาพการเล่นภาพรวม (Skills Performance Overview)'}</div>
+          <table style="margin-bottom: 25px;">
             <thead>
               <tr>
-                <th style="text-align: left;">Skill</th>
-                <th>Total</th>
-                <th>% Good (+)</th>
-                <th>% Error (-)</th>
+                <th style="text-align: left; padding: 8px 10px;">Skill</th>
+                <th style="padding: 8px 10px; width: 100px;">Total</th>
+                <th style="padding: 8px 10px; width: 120px;">% Good (+)</th>
+                <th style="padding: 8px 10px; width: 120px;">% Error (-)</th>
               </tr>
             </thead>
             <tbody>
-              ${compileTeamStatsHtml('away')}
+              ${compileTeamStatsHtml('away', awayAllEvents)}
             </tbody>
           </table>
 
-          <div class="grid-2" style="display: flex; gap: 20px; margin-top: 25px; align-items: flex-start;">
+          <!-- Away Player Stats Table -->
+          ${compilePlayerStatsHtml('away', awayAllEvents)}
+
+          <div class="grid-2" style="display: flex; gap: 20px; margin-top: 30px; align-items: flex-start; page-break-inside: avoid;">
             <div class="grid-col" style="flex: 1.1; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-              ${lang === "en" ? '<div class="sub-title" style="color: #0ea5e9; text-align: center; margin-bottom: 8px;">Attack Zones</div>' : '<div class="sub-title" style="color: #0ea5e9; text-align: center; margin-bottom: 8px;">Attack Zones (ทิศทางการโจมตี)</div>'}
-              ${compileHeatmapHtml('away')}
+              <div class="sub-title" style="color: #0ea5e9; text-align: center; margin-bottom: 8px;">Attack Zones</div>
+              ${compileHeatmapHtml('away', awayAllEvents)}
             </div>
             <div class="grid-col" style="flex: 1.9; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-              ${lang === "en" ? '<div class="sub-title" style="color: #8b5cf6; text-align: center; margin-bottom: 8px;">Setter Rotations</div>' : '<div class="sub-title" style="color: #8b5cf6; text-align: center; margin-bottom: 8px;">Setter Rotations (ประสิทธิภาพหน้าเซต)</div>'}
-              ${compileRotationHtml('away')}
+              <div class="sub-title" style="color: #8b5cf6; text-align: center; margin-bottom: 8px;">Setter Rotations</div>
+              ${compileRotationHtml('away', awayAllEvents)}
             </div>
           </div>
         </div>
+
+        <div style="text-align: center; font-size: 26px; font-weight: 950; margin: 50px 0 20px 0; color: #0f172a; border-bottom: 3px double #cbd5e1; padding-bottom: 10px; page-break-before: always;">
+          ${lang === 'en' ? 'PART 2: SET-BY-SET DETAILED ANALYSIS' : 'ส่วนที่ 2: ผลวิเคราะห์สถิติแยกตามรายเซต (Set-by-Set Analysis)'}
+        </div>
+
+        <!-- SETS BREAKDOWNS CONTENT -->
+        ${setsContentHtml}
 
         <div class="footer">
           Generated automatically by V Project (beta) Detailed Analytical Engine.
@@ -5701,6 +5873,7 @@ export default function App() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
 
   const copyRoomCode = () => {
     if (!activeRoom) return;
@@ -5868,7 +6041,7 @@ export default function App() {
                 onClick={handleExportPDF}
                 className="flex items-center gap-1.5 text-[10px] sm:text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-lg border border-indigo-500 transition-colors font-bold shrink-0 shadow-sm"
               >
-                <Download className="w-3.5 h-3.5 text-indigo-200" /> <span className="hidden sm:inline">PDF</span>
+                <Download className="w-3.5 h-3.5 text-indigo-200" /> <span className="hidden sm:inline">HTML Report</span>
               </button>
             </div>
           )}
