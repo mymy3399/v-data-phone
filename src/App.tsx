@@ -3249,10 +3249,15 @@ function TrackerView({
                      >
                        <span className={`absolute top-0.5 left-1 text-[6px] sm:text-[8px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
                        {playerNum ? (
-                         <div className="flex flex-col items-center justify-center">
-                           <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
-                           <span className="text-[5px] sm:text-[8px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
-                         </div>
+                         <div className="flex flex-col items-center justify-center w-full px-1">
+                            <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
+                            <span className="text-[5px] sm:text-[8.5px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
+                            {playerDetails.name && playerDetails.name !== '-' && (
+                              <span className={`text-[6.5px] sm:text-[9.5px] font-black truncate w-full text-center mt-0.5 tracking-wide leading-none ${isSelected ? 'text-indigo-100 font-extrabold' : 'text-slate-350'}`}>
+                                {playerDetails.name.split(' ')[0].slice(0, 8)}
+                              </span>
+                            )}
+                          </div>
                        ) : (
                          <span className="text-[10px] sm:text-sm font-black text-white/10">{zone.label}</span>
                        )}
