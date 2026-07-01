@@ -3003,7 +3003,8 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
 
 function TrackerView({ 
   role, score, teamNames, rotations, roster, tempRallyEvents, onSaveEvent, onCommitRally, onClearRally, onUndo, onFoul, onSubstitution, onManualRotate, hasEvents, timeouts, currentServe,
-  status, onManualEndSet, onManualEndMatch, onResumeMatch, hideCourts = false
+  status, onManualEndSet, onManualEndMatch, onResumeMatch, hideCourts = false,
+  autoLiberoSwapEnabled, setAutoLiberoSwapEnabled
 }) {
   const { lang } = useContext(LanguageContext);
   const t = (key) => (translations[lang] || {})[key] || (translations['th'] || {})[key] || key;
@@ -3125,8 +3126,21 @@ function TrackerView({
 
       {/* Control Actions bar */}
       <div className="bg-slate-950/70 p-1.5 border-b border-slate-800 flex justify-between items-center px-2 shrink-0">
-        <div className="flex items-center gap-1">
-           <span className={`font-black text-xs tracking-wider ${teamColor}`}>{teamLabel} SCOUT</span>
+        <div className="flex items-center gap-2">
+           <span className={`font-black text-[10px] sm:text-xs tracking-wider ${teamColor}`}>{teamLabel} SCOUT</span>
+           <label className="flex items-center gap-1 cursor-pointer select-none border border-slate-800 bg-slate-900 px-1.5 py-0.5 rounded text-[8px] sm:text-[9.5px] font-black text-slate-400 hover:text-slate-200">
+             <input
+               type="checkbox"
+               checked={autoLiberoSwapEnabled}
+               onChange={(e) => {
+                 const val = e.target.checked;
+                 setAutoLiberoSwapEnabled(val);
+                 localStorage.setItem('app_auto_libero', val ? 'true' : 'false');
+               }}
+               className="w-2.5 h-2.5 accent-amber-500 rounded cursor-pointer"
+             />
+             {lang === 'en' ? 'AUTO L' : 'ลิเบอโร่ Auto'}
+           </label>
         </div>
         
         <div className="flex gap-1 shrink-0 overflow-x-auto custom-scrollbar max-w-[65vw] sm:max-w-none pb-0.5">
@@ -4343,6 +4357,10 @@ export default function App() {
 
   const [leftWidth, setLeftWidth] = useState(380);
   const [isActionLocked, setIsActionLocked] = useState(false);
+  const [autoLiberoSwapEnabled, setAutoLiberoSwapEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('app_auto_libero');
+    return saved !== 'false';
+  });
 
   const triggerActionLock = () => {
     setIsActionLocked(true);
@@ -4401,6 +4419,40 @@ export default function App() {
     return saved ? parseFloat(saved) : 1.0;
   });
   const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
+  const [cachedFonts, setCachedFonts] = useState<{ regular: string | null; bold: string | null }>({
+    regular: null,
+    bold: null
+  });
+
+  useEffect(() => {
+    const prefetchFonts = async () => {
+      try {
+        const getBaseUrl = () => {
+          const url = window.location.href;
+          return url.substring(0, url.lastIndexOf('/') + 1);
+        };
+        const baseUrl = getBaseUrl();
+        
+        const fetchFontBase64 = async (url: string) => {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const buffer = await res.arrayBuffer();
+          const binary = new Uint8Array(buffer).reduce((acc, byte) => acc + String.fromCharCode(byte), '');
+          return btoa(binary);
+        };
+
+        const [regular, bold] = await Promise.all([
+          fetchFontBase64(baseUrl + 'fonts/Sarabun-Regular.ttf'),
+          fetchFontBase64(baseUrl + 'fonts/Sarabun-Bold.ttf')
+        ]);
+        setCachedFonts({ regular, bold });
+        console.log('PDF fonts pre-cached successfully!');
+      } catch (err) {
+        console.error('Failed to pre-cache PDF fonts:', err);
+      }
+    };
+    prefetchFonts();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('app_font_size', appFontSize.toString());
@@ -4658,7 +4710,17 @@ export default function App() {
           setMatchData(data);
         }
       } catch (err) {
-        console.error('Error fetching match from MongoDB:', err);
+        console.error('Error fetching match from MongoDB, loading local backup:', err);
+        const savedBackup = localStorage.getItem(`local_match_backup_${activeRoom}`);
+        if (savedBackup) {
+          try {
+            const parsedBackup = JSON.parse(savedBackup);
+            setMatchData(parsedBackup);
+            console.log('Restored match state from local storage backup!');
+          } catch (backupErr) {
+            console.error('Error parsing local storage backup:', backupErr);
+          }
+        }
       }
     };
 
@@ -4668,12 +4730,18 @@ export default function App() {
     socket.connect();
     socket.emit('join_room', activeRoom);
 
+    // Re-join the room automatically if the socket reconnects after a signal drop
+    socket.on('connect', () => {
+      socket.emit('join_room', activeRoom);
+    });
+
     // Listen to real-time updates from other clients
     socket.on('match_updated', (updatedData) => {
       setMatchData(updatedData);
     });
 
     return () => {
+      socket.off('connect');
       socket.off('match_updated');
       socket.disconnect();
     };
@@ -4703,7 +4771,7 @@ export default function App() {
   }, [matchData.score, matchData.setsWon]);
 
   const applyAutoLiberoSwaps = (state: any) => {
-    if (!state || !state.rotations || !state.roster) return state;
+    if (!state || !state.rotations || !state.roster || !autoLiberoSwapEnabled) return state;
 
     let updatedRotations = { ...state.rotations };
     let updatedSwaps = { ...(state.liberoSwaps || {}) };
@@ -4828,6 +4896,11 @@ export default function App() {
     const finalState = applyAutoLiberoSwaps(nextState);
     setMatchData(finalState);
     if (activeRoom) {
+      try {
+        localStorage.setItem(`local_match_backup_${activeRoom}`, JSON.stringify(finalState));
+      } catch (err) {
+        console.error('Error writing match backup to localStorage:', err);
+      }
       socket.emit('update_match', { roomId: activeRoom, matchData: finalState });
     }
   };
@@ -5193,6 +5266,15 @@ export default function App() {
 
     if (matchData.events && matchData.events.length > 0) {
       const lastEvent = matchData.events[matchData.events.length - 1];
+      
+      if (lastEvent.team && lastEvent.team !== role && role !== ROLES.COACH) {
+        const confirmUndo = window.confirm(
+          lang === 'en' 
+            ? "Warning: The last event belongs to the other team. Do you want to undo it?" 
+            : "คำเตือน: เหตุการณ์ล่าสุดเป็นของทีมตรงข้าม คุณแน่ใจหรือไม่ว่าต้องการลบ?"
+        );
+        if (!confirmUndo) return;
+      }
       
       let nextScore = { ...matchData.score };
       let nextRotations = { ...matchData.rotations };
@@ -5804,24 +5886,28 @@ export default function App() {
       return btoa(binary);
     };
 
-    // Load fonts and compile PDF using path relative to window location origin & pathname
-    const getBaseUrl = () => {
-      const url = window.location.href;
-      return url.substring(0, url.lastIndexOf('/') + 1);
-    };
-    const baseUrl = getBaseUrl();
+    if (cachedFonts.regular && cachedFonts.bold) {
+      generatePDF(cachedFonts.regular, cachedFonts.bold);
+    } else {
+      // Load fonts and compile PDF using path relative to window location origin & pathname
+      const getBaseUrl = () => {
+        const url = window.location.href;
+        return url.substring(0, url.lastIndexOf('/') + 1);
+      };
+      const baseUrl = getBaseUrl();
 
-    Promise.all([
-      fetchFontBase64(baseUrl + 'fonts/Sarabun-Regular.ttf'), // Regular
-      fetchFontBase64(baseUrl + 'fonts/Sarabun-Bold.ttf')  // Bold
-    ]).then(([regularBase64, boldBase64]) => {
-      generatePDF(regularBase64, boldBase64);
-    }).catch(err => {
-      console.error("Failed to load Sarabun font locally, falling back to Helvetica...", err);
-      generatePDF(null, null);
-    });
+      Promise.all([
+        fetchFontBase64(baseUrl + 'fonts/Sarabun-Regular.ttf'), // Regular
+        fetchFontBase64(baseUrl + 'fonts/Sarabun-Bold.ttf')  // Bold
+      ]).then(([regularBase64, boldBase64]) => {
+        generatePDF(regularBase64, boldBase64);
+      }).catch(err => {
+        console.error("Failed to load Sarabun font locally, falling back to Helvetica...", err);
+        generatePDF(null, null);
+      });
+    }
 
-    const generatePDF = (regularBase64, boldBase64) => {
+    function generatePDF(regularBase64, boldBase64) {
       const doc = new jsPDF({
         orientation: 'p',
         unit: 'pt',
@@ -6380,6 +6466,8 @@ export default function App() {
                     onSubstitution={(target, sub) => handleSubstitution(role, target, sub)}
                     onManualRotate={() => rotateTeamClockwise(role)}
                     hasEvents={matchData.events.filter(e => e.team === role).length > 0}
+                    autoLiberoSwapEnabled={autoLiberoSwapEnabled}
+                    setAutoLiberoSwapEnabled={setAutoLiberoSwapEnabled}
                  />
               </div>
             )}
