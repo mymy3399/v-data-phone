@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import { io } from 'socket.io-client';
 import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './translations';
+import { jsPDF } from 'jspdf';
 import { 
   ClipboardList, MonitorPlay, Check, X, Undo2, Settings, 
   Users, RotateCcw, AlertCircle, BarChart3, Swords, LogIn, Plus, Copy, CloudLightning, Download, BookOpen, ChevronRight, Link2, Trophy, PlayCircle, ChevronLeft,
@@ -5308,6 +5309,27 @@ export default function App() {
   };
 
   const handleExportPDF = () => {
+    // Show generating loading overlay
+    const loadingEl = document.createElement('div');
+    loadingEl.style.position = 'fixed';
+    loadingEl.style.top = '0';
+    loadingEl.style.left = '0';
+    loadingEl.style.width = '100vw';
+    loadingEl.style.height = '100vh';
+    loadingEl.style.background = 'rgba(15, 23, 42, 0.9)';
+    loadingEl.style.display = 'flex';
+    loadingEl.style.flexDirection = 'column';
+    loadingEl.style.justifyContent = 'center';
+    loadingEl.style.alignItems = 'center';
+    loadingEl.style.zIndex = '99999';
+    loadingEl.style.color = '#fff';
+    loadingEl.style.fontFamily = 'Sarabun, Inter, sans-serif';
+    loadingEl.innerHTML = `
+      <div style="font-size: 20px; font-weight: 800; margin-bottom: 12px;">${lang === 'en' ? 'Generating PDF Report...' : 'กำลังสร้างรายงาน PDF...'}</div>
+      <div style="font-size: 14px; color: #94a3b8;">${lang === 'en' ? 'Please wait, rendering report structure.' : 'กรุณารอการบันทึกสักครู่ ระบบกำลังจัดทำสถิติลงไฟล์ PDF'}</div>
+    `;
+    document.body.appendChild(loadingEl);
+
     // Helper: Skills Overall Table
     const compileTeamStatsHtml = (team, tEvents) => {
       return SKILLS.map(skill => {
@@ -5728,11 +5750,6 @@ export default function App() {
         </style>
       </head>
       <body>
-        <div class="no-print print-header">
-          <span class="print-tip">${lang === "en" ? '💡 Tip: You can print or save this HTML report as a PDF by clicking the button, or press Ctrl+P / Cmd+P' : '💡 คำแนะนำ: คุณสามารถพิมพ์หรือบันทึกรายงานสรุปผล HTML นี้เป็น PDF ได้โดยกดปุ่มพิมพ์ หรือกด Ctrl+P / Cmd+P'}</span>
-          <button onclick="window.print()" class="print-btn">${lang === "en" ? 'Print / Save as PDF' : 'พิมพ์ / บันทึกเป็น PDF'}</button>
-        </div>
-
         <div class="header">
           <div class="logo">V Project <span>beta</span></div>
           <div style="font-size: 12px; text-align: right; color: #64748b; font-weight: 500;">LIVE ROOM: ${activeRoom || 'Local Match'}</div>
@@ -5863,15 +5880,34 @@ export default function App() {
       </html>
     `;
 
-    const blob = new Blob([printContent], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `scout_report_${activeRoom || 'match'}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Create temporary offscreen container
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '800px';
+    container.style.background = '#ffffff';
+    container.innerHTML = printContent;
+    document.body.appendChild(container);
+
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'pt',
+      format: 'a4'
+    });
+
+    doc.html(container, {
+      callback: function (pdf) {
+        pdf.save(`scout_report_${activeRoom || 'match'}.pdf`);
+        document.body.removeChild(container);
+        document.body.removeChild(loadingEl);
+      },
+      x: 0,
+      y: 0,
+      width: 595.28,
+      windowWidth: 800,
+      autoPaging: 'text'
+    });
   };
 
 
@@ -6041,7 +6077,7 @@ export default function App() {
                 onClick={handleExportPDF}
                 className="flex items-center gap-1.5 text-[10px] sm:text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-lg border border-indigo-500 transition-colors font-bold shrink-0 shadow-sm"
               >
-                <Download className="w-3.5 h-3.5 text-indigo-200" /> <span className="hidden sm:inline">HTML Report</span>
+                <Download className="w-3.5 h-3.5 text-indigo-200" /> <span className="hidden sm:inline">PDF Report</span>
               </button>
             </div>
           )}
