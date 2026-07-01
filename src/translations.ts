@@ -185,7 +185,7 @@ export const translations = {
     qualityTab: "QUALITY",
     attackZoneTab: "ATTACK ZONE",
     rotationTab: "ROTATION",
-    logsTab: "LOGS",
+    logsTab: "Logs",
     timeoutsUsed: "เวลานอกใช้ไป: {count}/2",
     timeoutsLabel: "เวลานอก",
     subsLabel: "เปลี่ยนตัว",
@@ -216,7 +216,14 @@ export const translations = {
     pdfPrintBtn: "พิมพ์ / บันทึกเป็น PDF",
     pdfGuideTitle: "คู่มือปฏิบัติงานฉบับสมบูรณ์ (V Project)",
     pdfGuideSubtitle: "Official Operational & Technical Guide",
-    pdfGeneratedFooter: "Generated automatically by V Project (beta) Analytical Engine."
+    pdfGeneratedFooter: "Generated automatically by V Project (beta) Analytical Engine.",
+    playerStatsTitle: "วิเคราะห์สถิติผู้เล่นรายบุคคล",
+    avgActions: "เฉลี่ยเข้าทำ/ทักษะ",
+    avgPerSet: "เฉลี่ยเข้าทำ/เซต",
+    totalActions: "รวมเข้าทำ",
+    playerNo: "เบอร์",
+    playerName: "ผู้เล่น",
+    playerPos: "ตำแหน่ง"
   },
   en: {
     appTitle: "V Project",
@@ -435,7 +442,14 @@ export const translations = {
     pdfPrintBtn: "Print / Save as PDF",
     pdfGuideTitle: "Complete Operational Guide (V Project)",
     pdfGuideSubtitle: "Official Operational & Technical Guide",
-    pdfGeneratedFooter: "Generated automatically by V Project (beta) Analytical Engine."
+    pdfGeneratedFooter: "Generated automatically by V Project (beta) Analytical Engine.",
+    playerStatsTitle: "Individual Player Stats Analysis",
+    avgActions: "Avg Actions/Skill",
+    avgPerSet: "Avg Actions/Set",
+    totalActions: "Total Actions",
+    playerNo: "No.",
+    playerName: "Player",
+    playerPos: "Pos"
   }
 };
 

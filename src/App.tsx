@@ -302,7 +302,7 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
 
   return (
     <div className="bg-slate-900 rounded-xl p-3 pb-3.5 border border-slate-700 shrink-0 shadow-lg relative flex flex-col gap-2">
-      {/* Live Indicator Header merged from top bar */}
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-[10px] font-black uppercase tracking-wider text-slate-400 px-1 shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
@@ -312,87 +312,90 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
           SET {score.set}
         </div>
       </div>
-      
-      <div className="flex justify-between items-center">
-        <div className="flex flex-col items-center w-5/12">
-          <div className="flex items-center gap-1.5 leading-none">
-            <span className="text-indigo-400 font-black text-[10px] sm:text-xs truncate max-w-[100px]">{teamNames.home}</span>
-            {isHomeServe && <span className="w-2 h-2 bg-amber-400 rounded-full animate-ping" title={lang === 'th' ? "ทีมเสิร์ฟ" : "Serving team"}></span>}
+
+      {/* Score Row */}
+      <div className="flex items-center justify-between">
+        {/* HOME */}
+        <div className="flex flex-col items-center w-5/12 gap-0.5">
+          <div className="flex items-center gap-1 leading-none">
+            <span className="text-indigo-400 font-black text-[10px] sm:text-xs truncate max-w-[90px]">{teamNames.home}</span>
+            {isHomeServe && <span className="w-2 h-2 bg-amber-400 rounded-full animate-ping" title={lang === 'th' ? 'ทีมเสิร์ฟ' : 'Serving'}></span>}
           </div>
-          <div className="text-3xl sm:text-4xl font-black font-mono leading-none my-1 text-white">{score.home}</div>
-          <div className="flex gap-1 items-center mb-1">
-            <div className="text-[8px] sm:text-[9px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800 shrink-0">
+          <div className="text-3xl sm:text-4xl font-black font-mono leading-none text-white">{score.home}</div>
+          <div className="flex items-center gap-1 mt-0.5">
+            <div className="text-[8px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
               {t('setLabel')} <span className="text-indigo-400">{setsWon?.home || 0}</span>
             </div>
             {currentServe !== null && (
-              <span className={`text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none shrink-0
-                ${isHomeServe 
-                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[0_0_6px_rgba(245,158,11,0.2)] animate-pulse' 
-                  : 'bg-slate-950 text-slate-500 border-slate-800'
-                }`}
-              >
-                {isHomeServe 
-                  ? (lang === 'en' ? 'Serving' : 'กำลังเสิร์ฟ') 
-                  : (lang === 'en' ? 'Receiving' : 'รับเสิร์ฟ')
-                }
+              <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none
+                ${isHomeServe ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
+                {isHomeServe ? (lang === 'en' ? 'SRV' : 'เสิร์ฟ') : (lang === 'en' ? 'RCV' : 'รับ')}
               </span>
             )}
-          </div>
-          
-          <div className="flex flex-col gap-1 w-full items-center mt-0.5">
-            {(role === ROLES.HOME || role === ROLES.COACH) && (
-              <div className="flex gap-1 w-full justify-center">
-                <button onClick={() => onUpdateScore('home', -1)} className="px-2 py-1 bg-slate-800 rounded hover:bg-slate-700 border border-slate-600 text-[9px] font-bold text-slate-300 leading-none transition-colors">-1</button>
-                <button onClick={() => onUpdateScore('home', 1)} disabled={currentServe === null} className="px-3 py-1 bg-indigo-600 rounded hover:bg-indigo-500 text-[10px] font-black text-white shadow-md leading-none disabled:opacity-40 transition-colors">+1</button>
-              </div>
-            )}
-            {(role === ROLES.HOME || role === ROLES.COACH) && (
-              <div className="flex gap-1 w-full justify-center max-w-[80px]">
-                <button 
-                  onClick={() => onTimeout('home')}
-                  disabled={timeouts?.home >= 2}
-                  className="text-[8px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-2 py-1 rounded-md font-bold transition-colors flex-1"
-                >
-                  {t('timeoutCountLabel', { count: timeouts?.home || 0 })}
-                </button>
-                {timeouts?.home > 0 && (
-                  <button 
-                    onClick={() => onReduceTimeout('home')}
-                    className="text-[9px] bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-900/50 px-2 py-1 rounded-md font-black transition-colors"
-                    title={lang === 'en' ? 'Undo Timeout' : 'ย้อนเวลานอก'}
-                  >
-                    -
-                  </button>
-                )}
-              </div>
-            )}
-            
-            {/* Substitution status bar */}
-            <div className="flex items-center gap-1 mt-1 justify-center">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">
-                {lang === 'en' ? 'SUB:' : 'เปลี่ยนตัว:'}
-              </span>
-              <div className="flex gap-0.5">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div 
-                    key={i} 
-                    className={`w-1 h-2 rounded-sm border transition-all duration-300
-                      ${i < homeSubs 
-                        ? 'bg-indigo-500 border-indigo-400 shadow-[0_0_4px_rgba(99,102,241,0.6)]' 
-                        : 'bg-slate-950 border-slate-850'
-                      }`} 
-                  />
-                ))}
-              </div>
-              <span className="text-[8px] font-mono font-black text-slate-300 ml-1">{homeSubs}/6</span>
-            </div>
           </div>
         </div>
 
-        <div className="w-2/12 flex flex-col items-center justify-center shrink-0 leading-none relative">
-          <span className="text-[8px] font-black text-slate-300 tracking-widest bg-slate-950 px-2 py-1 rounded border border-slate-700">SET {score.set}</span>
-          <div className="text-sm font-bold text-slate-600 leading-none py-1.5">:</div>
-          
+        {/* CENTER: Set label + Timeout + Sub status */}
+        <div className="w-2/12 flex flex-col items-center justify-center shrink-0 gap-1.5 relative">
+          <div className="text-sm font-bold text-slate-600 leading-none">:</div>
+
+          {/* Timeout status both teams */}
+          <div className="flex flex-col items-center gap-1 w-full">
+            <div className="text-[7px] font-black text-slate-500 uppercase tracking-wider">T-OUT</div>
+            <div className="flex items-center justify-between w-full px-0.5 gap-1">
+              {/* Home timeout btn */}
+              {(role === ROLES.HOME || role === ROLES.COACH) ? (
+                <button
+                  onClick={() => onTimeout('home')}
+                  disabled={timeouts?.home >= 2}
+                  className="text-[7px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-1 py-0.5 rounded font-bold transition-colors flex-1 text-center"
+                >
+                  {timeouts?.home || 0}/2
+                </button>
+              ) : (
+                <span className="text-[7px] text-amber-400 font-black flex-1 text-center">{timeouts?.home || 0}/2</span>
+              )}
+              <span className="text-slate-700 text-[7px] font-bold">|</span>
+              {/* Away timeout btn */}
+              {(role === ROLES.AWAY || role === ROLES.COACH) ? (
+                <button
+                  onClick={() => onTimeout('away')}
+                  disabled={timeouts?.away >= 2}
+                  className="text-[7px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-1 py-0.5 rounded font-bold transition-colors flex-1 text-center"
+                >
+                  {timeouts?.away || 0}/2
+                </button>
+              ) : (
+                <span className="text-[7px] text-amber-400 font-black flex-1 text-center">{timeouts?.away || 0}/2</span>
+              )}
+            </div>
+          </div>
+
+          {/* Sub status both teams */}
+          <div className="flex flex-col items-center gap-1 w-full">
+            <div className="text-[7px] font-black text-slate-500 uppercase tracking-wider">SUB</div>
+            <div className="flex items-center justify-between w-full px-0.5 gap-0.5">
+              {/* Home subs */}
+              <div className="flex gap-[2px]">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className={`w-1 h-2 rounded-sm border ${i < homeSubs ? 'bg-indigo-500 border-indigo-400' : 'bg-slate-950 border-slate-700'}`} />
+                ))}
+              </div>
+              <span className="text-[6px] text-slate-600 font-black">|</span>
+              {/* Away subs */}
+              <div className="flex gap-[2px]">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className={`w-1 h-2 rounded-sm border ${i < awaySubs ? 'bg-rose-500 border-rose-400' : 'bg-slate-950 border-slate-700'}`} />
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-between w-full px-0.5">
+              <span className="text-[7px] text-indigo-400 font-black">{homeSubs}/6</span>
+              <span className="text-[7px] text-rose-400 font-black">{awaySubs}/6</span>
+            </div>
+          </div>
+
+          {/* First serve popup */}
           {currentServe === null && score.home === 0 && score.away === 0 && (
             role !== ROLES.COACH ? (
               <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 z-50 w-[150px] bg-slate-800 border border-amber-500/50 p-2.5 rounded-xl shadow-2xl text-center">
@@ -410,77 +413,22 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
           )}
         </div>
 
-        <div className="flex flex-col items-center w-5/12">
-          <div className="flex items-center gap-1.5 leading-none">
-            {isAwayServe && <span className="w-2 h-2 bg-amber-400 rounded-full animate-ping" title={lang === 'th' ? "ทีมเสิร์ฟ" : "Serving team"}></span>}
-            <span className="text-rose-400 font-black text-[10px] sm:text-xs truncate max-w-[100px]">{teamNames.away}</span>
+        {/* AWAY */}
+        <div className="flex flex-col items-center w-5/12 gap-0.5">
+          <div className="flex items-center gap-1 leading-none">
+            {isAwayServe && <span className="w-2 h-2 bg-amber-400 rounded-full animate-ping" title={lang === 'th' ? 'ทีมเสิร์ฟ' : 'Serving'}></span>}
+            <span className="text-rose-400 font-black text-[10px] sm:text-xs truncate max-w-[90px]">{teamNames.away}</span>
           </div>
-          <div className="text-3xl sm:text-4xl font-black font-mono leading-none my-1 text-white">{score.away}</div>
-          <div className="flex gap-1 items-center mb-1">
-            <div className="text-[8px] sm:text-[9px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800 shrink-0">
-              {t('setLabel')} <span className="text-rose-400">{setsWon?.away || 0}</span>
-            </div>
+          <div className="text-3xl sm:text-4xl font-black font-mono leading-none text-white">{score.away}</div>
+          <div className="flex items-center gap-1 mt-0.5">
             {currentServe !== null && (
-              <span className={`text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none shrink-0
-                ${isAwayServe 
-                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[0_0_6px_rgba(245,158,11,0.2)] animate-pulse' 
-                  : 'bg-slate-950 text-slate-500 border-slate-800'
-                }`}
-              >
-                {isAwayServe 
-                  ? (lang === 'en' ? 'Serving' : 'กำลังเสิร์ฟ') 
-                  : (lang === 'en' ? 'Receiving' : 'รับเสิร์ฟ')
-                }
+              <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none
+                ${isAwayServe ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
+                {isAwayServe ? (lang === 'en' ? 'SRV' : 'เสิร์ฟ') : (lang === 'en' ? 'RCV' : 'รับ')}
               </span>
             )}
-          </div>
-          
-          <div className="flex flex-col gap-1 w-full items-center mt-0.5">
-            {(role === ROLES.AWAY || role === ROLES.COACH) && (
-              <div className="flex gap-1 w-full justify-center">
-                <button onClick={() => onUpdateScore('away', 1)} disabled={currentServe === null} className="px-3 py-1 bg-rose-600 rounded hover:bg-rose-500 text-[10px] font-black text-white shadow-md leading-none disabled:opacity-40 transition-colors">+1</button>
-                <button onClick={() => onUpdateScore('away', -1)} className="px-2 py-1 bg-slate-800 rounded hover:bg-slate-700 border border-slate-600 text-[9px] font-bold text-slate-300 leading-none transition-colors">-1</button>
-              </div>
-            )}
-            {(role === ROLES.AWAY || role === ROLES.COACH) && (
-              <div className="flex gap-1 w-full justify-center max-w-[80px]">
-                <button 
-                  onClick={() => onTimeout('away')}
-                  disabled={timeouts?.away >= 2}
-                  className="text-[8px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-2 py-1 rounded-md font-bold transition-colors flex-1"
-                >
-                  {t('timeoutCountLabel', { count: timeouts?.away || 0 })}
-                </button>
-                {timeouts?.away > 0 && (
-                  <button 
-                    onClick={() => onReduceTimeout('away')}
-                    className="text-[9px] bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-900/50 px-2 py-1 rounded-md font-black transition-colors"
-                    title={lang === 'en' ? 'Undo Timeout' : 'ย้อนเวลานอก'}
-                  >
-                    -
-                  </button>
-                )}
-              </div>
-            )}
-            
-            {/* Substitution status bar */}
-            <div className="flex items-center gap-1 mt-1 justify-center">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">
-                {lang === 'en' ? 'SUB:' : 'เปลี่ยนตัว:'}
-              </span>
-              <div className="flex gap-0.5">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div 
-                    key={i} 
-                    className={`w-1 h-2 rounded-sm border transition-all duration-300
-                      ${i < awaySubs 
-                        ? 'bg-rose-500 border-rose-400 shadow-[0_0_4px_rgba(239,68,68,0.6)]' 
-                        : 'bg-slate-950 border-slate-850'
-                      }`} 
-                  />
-                ))}
-              </div>
-              <span className="text-[8px] font-mono font-black text-slate-300 ml-1">{awaySubs}/6</span>
+            <div className="text-[8px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
+              {t('setLabel')} <span className="text-rose-400">{setsWon?.away || 0}</span>
             </div>
           </div>
         </div>
