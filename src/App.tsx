@@ -3672,14 +3672,16 @@ function TrackerView({
         >
           <BarChart3 className="w-4 h-4 text-indigo-300" /> {t('qualityTab')}
         </button>
-        <button
-          onClick={() => setActiveTab('players')}
-          className={`flex-1 min-w-[80px] py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider shrink-0
-            ${activeTab === 'players' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
-          `}
-        >
-          <Users className="w-4 h-4 text-sky-400" /> {lang === 'en' ? 'Players' : 'วิเคราะห์ผู้เล่น'}
-        </button>
+        {!hideTabs && (
+          <button
+            onClick={() => setActiveTab('players')}
+            className={`flex-1 min-w-[80px] py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider shrink-0
+              ${activeTab === 'players' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
+            `}
+          >
+            <Users className="w-4 h-4 text-sky-400" /> {lang === 'en' ? 'Players' : 'วิเคราะห์ผู้เล่น'}
+          </button>
+        )}
         {!hideTabs && (
           <button
             onClick={() => setActiveTab('heatmap')}
