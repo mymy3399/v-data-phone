@@ -344,32 +344,42 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
 
           {/* Timeout status both teams */}
           <div className="flex flex-col items-center gap-1 w-full">
-            <div className="text-[7px] font-black text-slate-500 uppercase tracking-wider">T-OUT</div>
-            <div className="flex items-center justify-between w-full px-0.5 gap-1">
+            <div className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">T-OUT</div>
+            <div className="flex items-center justify-between w-full px-0.5 gap-1.5">
               {/* Home timeout btn */}
               {(role === ROLES.HOME || role === ROLES.COACH) ? (
                 <button
                   onClick={() => onTimeout('home')}
                   disabled={timeouts?.home >= 2}
-                  className="text-[7px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-1 py-0.5 rounded font-bold transition-colors flex-1 text-center"
+                  className={`text-[9.5px] font-mono font-black transition-all flex-1 text-center px-1.5 py-0.5 rounded border active:scale-95 cursor-pointer
+                    ${timeouts?.home >= 2 
+                      ? 'bg-slate-950 border-slate-800 text-slate-600 opacity-40' 
+                      : 'bg-slate-800 hover:bg-amber-500 border-amber-500/30 hover:border-amber-400 text-amber-400 hover:text-slate-950 shadow-[0_0_6px_rgba(245,158,11,0.15)]'}`}
                 >
                   {timeouts?.home || 0}/2
                 </button>
               ) : (
-                <span className="text-[7px] text-amber-400 font-black flex-1 text-center">{timeouts?.home || 0}/2</span>
+                <span className="text-[9.5px] font-mono font-black text-amber-500/60 bg-slate-950/40 border border-slate-850 px-1.5 py-0.5 rounded flex-1 text-center">
+                  {timeouts?.home || 0}/2
+                </span>
               )}
-              <span className="text-slate-700 text-[7px] font-bold">|</span>
+              <span className="text-slate-700 text-[8px] font-bold">|</span>
               {/* Away timeout btn */}
               {(role === ROLES.AWAY || role === ROLES.COACH) ? (
                 <button
                   onClick={() => onTimeout('away')}
                   disabled={timeouts?.away >= 2}
-                  className="text-[7px] bg-slate-800 disabled:opacity-40 hover:bg-amber-900/50 text-amber-400 border border-slate-700 px-1 py-0.5 rounded font-bold transition-colors flex-1 text-center"
+                  className={`text-[9.5px] font-mono font-black transition-all flex-1 text-center px-1.5 py-0.5 rounded border active:scale-95 cursor-pointer
+                    ${timeouts?.away >= 2 
+                      ? 'bg-slate-950 border-slate-800 text-slate-600 opacity-40' 
+                      : 'bg-slate-800 hover:bg-amber-500 border-amber-500/30 hover:border-amber-400 text-amber-400 hover:text-slate-950 shadow-[0_0_6px_rgba(245,158,11,0.15)]'}`}
                 >
                   {timeouts?.away || 0}/2
                 </button>
               ) : (
-                <span className="text-[7px] text-amber-400 font-black flex-1 text-center">{timeouts?.away || 0}/2</span>
+                <span className="text-[9.5px] font-mono font-black text-amber-500/60 bg-slate-950/40 border border-slate-850 px-1.5 py-0.5 rounded flex-1 text-center">
+                  {timeouts?.away || 0}/2
+                </span>
               )}
             </div>
           </div>
