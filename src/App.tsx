@@ -4986,6 +4986,10 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (matchData.status === 'finished') {
+      setSetEndData(null);
+      return;
+    }
     if (matchData.score) {
        const winner = checkSetEnd(matchData.score.home, matchData.score.away, matchData.score.set);
        if (winner) {
@@ -4999,7 +5003,7 @@ export default function App() {
           setSetEndData(null);
        }
     }
-  }, [matchData.score, matchData.setsWon]);
+  }, [matchData.score, matchData.setsWon, matchData.status]);
 
   useEffect(() => {
     if (matchData.status === 'finished') {
