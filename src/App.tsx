@@ -324,7 +324,29 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
             <span className="text-indigo-400 font-black text-[10px] sm:text-xs truncate max-w-[90px]">{teamNames.home}</span>
             {isHomeServe && <span className="w-2 h-2 bg-amber-400 rounded-full animate-ping" title={lang === 'th' ? 'ทีมเสิร์ฟ' : 'Serving'}></span>}
           </div>
-          <div className="text-3xl sm:text-4xl font-black font-mono leading-none text-white">{score.home}</div>
+          <div className="flex items-center gap-1.5 leading-none">
+            {role !== ROLES.UNASSIGNED ? (
+              <>
+                <button 
+                  onClick={() => onUpdateScore('home', -1)} 
+                  className="w-5 h-5 flex items-center justify-center bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-rose-400 rounded-md text-[10px] active:scale-90 font-black cursor-pointer shadow-inner shrink-0"
+                  title="Decrease Score"
+                >
+                  -
+                </button>
+                <span className="text-3xl sm:text-4xl font-black font-mono leading-none text-white px-0.5 select-none">{score.home}</span>
+                <button 
+                  onClick={() => onUpdateScore('home', 1)} 
+                  className="w-5 h-5 flex items-center justify-center bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-emerald-400 rounded-md text-[10px] active:scale-90 font-black cursor-pointer shadow-inner shrink-0"
+                  title="Increase Score"
+                >
+                  +
+                </button>
+              </>
+            ) : (
+              <span className="text-3xl sm:text-4xl font-black font-mono leading-none text-white select-none">{score.home}</span>
+            )}
+          </div>
           <div className="flex items-center gap-1 mt-0.5">
             <div className="text-[8px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
               {t('setLabel')} <span className="text-indigo-400">{setsWon?.home || 0}</span>
@@ -431,7 +453,29 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
             {isAwayServe && <span className="w-2 h-2 bg-amber-400 rounded-full animate-ping" title={lang === 'th' ? 'ทีมเสิร์ฟ' : 'Serving'}></span>}
             <span className="text-rose-400 font-black text-[10px] sm:text-xs truncate max-w-[90px]">{teamNames.away}</span>
           </div>
-          <div className="text-3xl sm:text-4xl font-black font-mono leading-none text-white">{score.away}</div>
+          <div className="flex items-center gap-1.5 leading-none">
+            {role !== ROLES.UNASSIGNED ? (
+              <>
+                <button 
+                  onClick={() => onUpdateScore('away', -1)} 
+                  className="w-5 h-5 flex items-center justify-center bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-rose-400 rounded-md text-[10px] active:scale-90 font-black cursor-pointer shadow-inner shrink-0"
+                  title="Decrease Score"
+                >
+                  -
+                </button>
+                <span className="text-3xl sm:text-4xl font-black font-mono leading-none text-white px-0.5 select-none">{score.away}</span>
+                <button 
+                  onClick={() => onUpdateScore('away', 1)} 
+                  className="w-5 h-5 flex items-center justify-center bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-emerald-400 rounded-md text-[10px] active:scale-90 font-black cursor-pointer shadow-inner shrink-0"
+                  title="Increase Score"
+                >
+                  +
+                </button>
+              </>
+            ) : (
+              <span className="text-3xl sm:text-4xl font-black font-mono leading-none text-white select-none">{score.away}</span>
+            )}
+          </div>
           <div className="flex items-center gap-1 mt-0.5">
             {currentServe !== null && (
               <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none
@@ -3055,7 +3099,7 @@ function TrackerView({
   const [subModalOpen, setSubModalOpen] = useState(false);
   const [foulModalOpen, setFoulModalOpen] = useState(false);
   const [isActionPanelOpen, setIsActionPanelOpen] = useState(true);
-  const [rightWidth, setRightWidth] = useState(220);
+  const [rightWidth, setRightWidth] = useState(260);
   
   const handleRightMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -3367,14 +3411,14 @@ function TrackerView({
                     <button
                       key={`p-panel-${zoneNum}-${num}`}
                       onClick={() => setCurrentEvent(prev => ({ ...prev, player: num, startZone: zoneNum }))}
-                      className={`py-1.5 sm:py-2.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
+                      className={`py-2 sm:py-3.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
                         ${currentEvent.player === num ? 'bg-amber-500 border-amber-400 text-slate-900 ring-2 ring-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}
                       `}
                     >
-                      <span className="absolute top-0.5 left-1 text-[5px] sm:text-[6px] font-black opacity-40">R{zoneNum}</span>
-                      <span className="font-black text-xs sm:text-sm leading-none mt-1 sm:mt-1.5">{num}</span>
-                      {shortName && <span className="text-[5px] sm:text-[7px] opacity-90 mt-0.5 font-bold truncate max-w-full px-0.5">{shortName}</span>}
-                      <span className="text-[5px] sm:text-[6px] opacity-70 uppercase font-bold">({details.position})</span>
+                      <span className="absolute top-0.5 left-1 text-[6.5px] sm:text-[8px] font-black opacity-45">R{zoneNum}</span>
+                      <span className="font-black text-sm sm:text-base md:text-lg leading-none mt-1 sm:mt-1.5">{num}</span>
+                      {shortName && <span className="text-[6px] sm:text-[8px] opacity-90 mt-0.5 font-bold truncate max-w-full px-0.5">{shortName}</span>}
+                      <span className="text-[5.5px] sm:text-[7.5px] opacity-70 uppercase font-bold">({details.position})</span>
                     </button>
                   )
                 })}
@@ -3391,7 +3435,7 @@ function TrackerView({
                   <button
                     key={skill.id}
                     onClick={() => setCurrentEvent(prev => ({ ...prev, skill: skill.id }))}
-                    className={`py-2 sm:py-3 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[8px] sm:text-[10px]
+                    className={`py-2.5 sm:py-4 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[10px] sm:text-[11px] md:text-[12.5px]
                       ${currentEvent.skill === skill.id ? (skill.colorActive + ' ring-2 ring-white shadow-lg') : (skill.color + ' opacity-80 hover:opacity-100')}
                     `}
                   >
@@ -3417,7 +3461,7 @@ function TrackerView({
                       }
                     }}
                     disabled={!currentEvent.player || !currentEvent.skill}
-                    className={`py-1.5 sm:py-2 rounded-lg font-black text-white transition-all active:scale-95 leading-none shadow-md disabled:opacity-20 disabled:scale-100 flex items-center justify-center text-[9px] sm:text-[10px]
+                    className={`py-2.5 sm:py-3.5 rounded-lg font-black text-white transition-all active:scale-95 leading-none shadow-md disabled:opacity-20 disabled:scale-100 flex items-center justify-center text-[10px] sm:text-[11.5px] md:text-[13px]
                       ${currentEvent.eval === evalObj.id ? evalObj.color + ' ring-2 ring-white scale-105 shadow-xl' : evalObj.color + ' opacity-90 hover:opacity-100 border border-black/20'}
                     `}
                   >
