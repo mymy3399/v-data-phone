@@ -5260,15 +5260,18 @@ export default function App() {
 
     let nextState;
     if (setEndData.isMatchOver) {
+      const completedSetScore = {
+        setNum: matchData.score.set,
+        home: matchData.score.home,
+        away: matchData.score.away,
+        winner
+      };
+      const newSetScores = [...(matchData.setScores || []), completedSetScore];
       nextState = {
         ...matchData,
-        score: { home: 0, away: 0, set: 1 },
-        setsWon: { home: 0, away: 0 },
-        currentServe: null,
-        events: [],
-        tempRallyEvents: [],
-        timeouts: { home: 0, away: 0 },
-        setScores: []
+        status: 'finished',
+        setsWon: newSetsWon,
+        setScores: newSetScores
       };
     } else {
       const completedSetScore = {
@@ -6788,10 +6791,18 @@ export default function App() {
 
             <button
               onClick={handleNextSet}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-lg shadow-lg shadow-emerald-900/50 transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-lg shadow-lg shadow-emerald-900/50 transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              {setEndData.isMatchOver ? <RotateCcw className="w-6 h-6" /> : <PlayCircle className="w-6 h-6" />}
-              {setEndData.isMatchOver ? (lang === 'en' ? 'Restart Match (Clear Score)' : 'เริ่มการแข่งขันใหม่ (ล้างคะแนน)') : (lang === 'en' ? 'Start Next Set' : 'เริ่มเกมเซตต่อไป')}
+              {setEndData.isMatchOver ? <Trophy className="w-5.5 h-5.5" /> : <PlayCircle className="w-5.5 h-5.5" />}
+              {setEndData.isMatchOver ? (lang === 'en' ? 'Save Results & View Stats' : 'บันทึกผลและดูสถิติการแข่งขัน') : (lang === 'en' ? 'Start Next Set' : 'เริ่มเกมเซตต่อไป')}
+            </button>
+
+            <button 
+              onClick={() => setSetEndData(null)}
+              className="w-full mt-2.5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-black text-sm border border-slate-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Undo2 className="w-4 h-4" />
+              {lang === 'en' ? 'Cancel / Fix Score' : 'ยกเลิก / แก้ไขคะแนน'}
             </button>
           </div>
         </div>
