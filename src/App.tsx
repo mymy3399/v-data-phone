@@ -3216,7 +3216,7 @@ function TrackerView({
       <>
         {/* Opponent Court */}
         <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mb-1 shrink min-h-0">
-          <div className="text-rose-400 font-extrabold text-[7.5px] sm:text-[9px] mb-0.5 tracking-wider uppercase">
+          <div className="text-rose-400 font-extrabold text-[9px] sm:text-[10px] mb-0.5 tracking-wider uppercase">
             {t('opponentCourtLabel')} {currentServe !== null && (currentServe === (role === 'home' ? 'away' : 'home') ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
           </div>
           <div className="w-full h-full grid grid-cols-3 grid-rows-[2fr_1fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
@@ -3228,7 +3228,7 @@ function TrackerView({
                   key={`opp-${zone.id}`}
                   onClick={() => handleZoneClick(zone.id, true)}
                   style={{ backgroundColor: isOppSelected ? undefined : oppIsFrontRow ? 'rgba(60,20,0,0.38)' : 'rgba(255,220,180,0.10)' }}
-                  className={`border border-white/20 flex items-center justify-center text-xs sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
+                  className={`border border-white/20 flex items-center justify-center text-sm sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
                     ${isOppSelected ? 'bg-rose-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : 'text-white/20'}
                   `}
                 >
@@ -3243,7 +3243,7 @@ function TrackerView({
         {/* Net line */}
         <div className="w-full max-w-[240px] h-1 sm:h-1.5 bg-slate-300 z-20 shadow-[0_0_5px_rgba(255,255,255,0.5)] my-0.5 sm:my-1 relative rounded-full shrink">
            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="bg-slate-900 px-1.5 py-0.5 rounded-full text-[5px] sm:text-[6px] text-white font-extrabold tracking-widest leading-none border border-slate-700">NET</div>
+              <div className="bg-slate-900 px-1.5 py-0.5 rounded-full text-[6px] sm:text-[7px] text-white font-extrabold tracking-widest leading-none border border-slate-700">NET</div>
            </div>
         </div>
 
@@ -3264,26 +3264,26 @@ function TrackerView({
                     ${isSelected ? 'bg-emerald-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : ''}
                   `}
                 >
-                  <span className={`absolute top-0.5 left-1 text-[6px] sm:text-[8px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
+                  <span className={`absolute top-0.5 left-1 text-[9px] sm:text-[10px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
                   {playerNum ? (
                     <div className="flex flex-col items-center justify-center w-full px-1">
-                       <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
-                       <span className="text-[5px] sm:text-[8.5px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
+                       <span className={`text-xl sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
+                       <span className="text-[8px] sm:text-[9.5px] px-1.5 py-0.5 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
                        {playerDetails.name && playerDetails.name !== '-' && (
-                         <span className={`text-[6.5px] sm:text-[9.5px] font-black truncate w-full text-center mt-0.5 tracking-wide leading-none ${isSelected ? 'text-indigo-100 font-extrabold' : 'text-slate-350'}`}>
+                         <span className={`text-[9px] sm:text-[10.5px] font-black truncate w-full text-center mt-0.5 tracking-wide leading-none ${isSelected ? 'text-indigo-100 font-extrabold' : 'text-slate-350'}`}>
                            {playerDetails.name.split(' ')[0].slice(0, 8)}
                          </span>
                        )}
                     </div>
                   ) : (
-                    <span className="text-[10px] sm:text-sm font-black text-white/10">{zone.label}</span>
+                    <span className="text-xs sm:text-sm font-black text-white/10">{zone.label}</span>
                   )}
                 </button>
               );
             })}
             <div className="absolute top-[33.33%] left-0 w-full border-t border-white/40 pointer-events-none"></div>
           </div>
-          <div className={`mt-0.5 font-extrabold text-[7.5px] sm:text-[9px] tracking-wider ${teamColor}`}>
+          <div className={`mt-0.5 font-extrabold text-[9px] sm:text-[10px] tracking-wider ${teamColor}`}>
             {t('ownCourtLabel')} {currentServe !== null && (currentServe === role ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
           </div>
         </div>
@@ -3299,12 +3299,12 @@ function TrackerView({
           <span className="text-[9px] sm:text-[10px] font-black text-amber-400 uppercase tracking-widest">{t('statEntryPanelTitle')}</span>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar gap-1.5 sm:gap-3 text-[9px] sm:text-[10px] pr-0.5">
+        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar gap-1.5 sm:gap-3 text-[10px] sm:text-[11px] pr-0.5 touch-pan-y">
           {/* Step 1: Player selection mapped to court rotation */}
           <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800">
-            <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 font-black uppercase tracking-wider flex justify-between items-center">
+            <label className="text-[9px] sm:text-[10.5px] text-amber-500 mb-1 font-black uppercase tracking-wider flex justify-between items-center">
               <span>{t('step1Player')}</span>
-              <span className="text-slate-500 text-[6px] bg-slate-900 px-1 rounded border border-slate-800">SYNCED</span>
+              <span className="text-slate-500 text-[8px] bg-slate-900 px-1 rounded border border-slate-800">SYNCED</span>
             </label>
             
             {/* Grid 3x2 corresponding to actual court rotation positions */}
@@ -3322,10 +3322,10 @@ function TrackerView({
                       ${currentEvent.player === num ? 'bg-amber-500 border-amber-400 text-slate-900 ring-2 ring-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}
                     `}
                   >
-                    <span className="absolute top-0.5 left-1 text-[6.5px] sm:text-[8px] font-black opacity-45">R{zoneNum}</span>
-                    <span className="font-black text-sm sm:text-base md:text-lg leading-none mt-1 sm:mt-1.5">{num}</span>
-                    {shortName && <span className="text-[6px] sm:text-[8px] opacity-90 mt-0.5 font-bold truncate max-w-full px-0.5">{shortName}</span>}
-                    <span className="text-[5.5px] sm:text-[7.5px] opacity-70 uppercase font-bold">({details.position})</span>
+                    <span className="absolute top-0.5 left-1 text-[8px] sm:text-[9.5px] font-black opacity-45">R{zoneNum}</span>
+                    <span className="font-black text-base sm:text-lg md:text-xl leading-none mt-1 sm:mt-1.5">{num}</span>
+                    {shortName && <span className="text-[9px] sm:text-[10px] opacity-90 mt-0.5 font-bold truncate max-w-full px-0.5">{shortName}</span>}
+                    <span className="text-[8px] sm:text-[9px] opacity-70 uppercase font-bold">({details.position})</span>
                   </button>
                 )
               })}
@@ -3334,7 +3334,7 @@ function TrackerView({
 
           {/* Step 2: Skills */}
           <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800">
-            <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
+            <label className="text-[9px] sm:text-[10.5px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
               {t('step2Skill')}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5">
@@ -3342,7 +3342,7 @@ function TrackerView({
                 <button
                   key={skill.id}
                   onClick={() => setCurrentEvent(prev => ({ ...prev, skill: skill.id }))}
-                  className={`py-2.5 sm:py-4 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[10px] sm:text-[11px] md:text-[12.5px]
+                  className={`py-2.5 sm:py-4 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[11px] sm:text-xs md:text-sm
                     ${currentEvent.skill === skill.id ? (skill.colorActive + ' ring-2 ring-white shadow-lg') : (skill.color + ' opacity-80 hover:opacity-100')}
                   `}
                 >
@@ -3355,7 +3355,7 @@ function TrackerView({
 
           {/* Step 3: Evaluations */}
           <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800 flex-1 flex flex-col">
-            <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
+            <label className="text-[9px] sm:text-[10.5px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
               {t('step3Eval')}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5 flex-1">
@@ -3368,12 +3368,12 @@ function TrackerView({
                     }
                   }}
                   disabled={!currentEvent.player || !currentEvent.skill}
-                  className={`py-2.5 sm:py-3.5 rounded-lg font-black text-white transition-all active:scale-95 leading-none shadow-md disabled:opacity-20 disabled:scale-100 flex items-center justify-center text-[10px] sm:text-[11.5px] md:text-[13px]
+                  className={`py-2.5 sm:py-3.5 rounded-lg font-black text-white transition-all active:scale-95 leading-none shadow-md disabled:opacity-20 disabled:scale-100 flex items-center justify-center text-[11px] sm:text-xs md:text-sm
                     ${currentEvent.eval === evalObj.id ? evalObj.color + ' ring-2 ring-white scale-105 shadow-xl' : evalObj.color + ' opacity-90 hover:opacity-100 border border-black/20'}
                   `}
                 >
                   <span className="hidden sm:inline">{getLocalizedEvalLabel(evalObj.id, lang)}</span>
-                  <span className="sm:hidden text-xs">{evalObj.id}</span>
+                  <span className="sm:hidden text-sm font-black">{evalObj.id}</span>
                 </button>
               ))}
             </div>
@@ -3454,8 +3454,8 @@ function TrackerView({
       </div>
 
       {isPortrait ? (
-        /* Portrait layout: 2 Columns */
-        <div className="flex-1 flex flex-row overflow-hidden relative min-h-0 w-full gap-2 p-1 sm:p-2">
+        /* Portrait layout: 2 Columns (Stacked on mobile, side-by-side on tablets) */
+        <div className="flex-1 flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden relative min-h-0 w-full gap-2 p-1 sm:p-2">
           {status === 'finished' && (
             <div className="absolute inset-0 bg-slate-950/85 z-40 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-200">
               <Trophy className="w-12 h-12 text-amber-400 mb-2 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]" />
@@ -3471,7 +3471,7 @@ function TrackerView({
           )}
           
           {/* Column 1: ScoreBoard + Mock Court + Dashboard */}
-          <div className="flex-1 flex flex-col gap-2 h-full min-h-0 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 flex flex-col gap-2 h-auto sm:h-full min-h-0 overflow-visible sm:overflow-y-auto custom-scrollbar touch-pan-y">
             {/* ScoreBoard */}
             <ScoreBoard 
               score={score} 
@@ -3512,7 +3512,7 @@ function TrackerView({
           </div>
 
           {/* Column 2: Action Keying Panel */}
-          <div className="w-[300px] sm:w-[325px] shrink-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 p-1.5 sm:p-3 overflow-hidden">
+          <div className="w-full sm:w-[320px] shrink-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 p-1.5 sm:p-3 h-auto sm:h-full overflow-visible sm:overflow-hidden">
             {renderActionPanel()}
           </div>
         </div>
@@ -6799,6 +6799,10 @@ export default function App() {
       )}
 
       <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar {
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior-y: contain;
+        }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
@@ -6806,6 +6810,9 @@ export default function App() {
         .synthetic-court {
           background-color: #d97746;
           background-image: linear-gradient(135deg, #e38758 0%, #c45b2b 100%);
+        }
+        .touch-pan-y {
+          touch-action: pan-y;
         }
       `}} />
         </div>
