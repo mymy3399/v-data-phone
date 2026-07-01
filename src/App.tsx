@@ -3084,7 +3084,7 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
 
 function TrackerView({ 
   role, score, teamNames, rotations, roster, tempRallyEvents, onSaveEvent, onCommitRally, onClearRally, onUndo, onFoul, onSubstitution, onManualRotate, hasEvents, timeouts, currentServe,
-  status, onManualEndSet, onManualEndMatch, onResumeMatch, hideCourts = false,
+  status, onManualEndSet, onManualEndMatch, onResumeMatch, onExitMatch, hideCourts = false,
   autoLiberoSwapEnabled, setAutoLiberoSwapEnabled,
   isPortrait = false,
   setsWon = { home: 0, away: 0 },
@@ -3466,12 +3466,20 @@ function TrackerView({
               <Trophy className="w-12 h-12 text-amber-400 mb-2 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]" />
               <h3 className="text-sm font-black text-white mb-0.5">{t('matchHasEnded')}</h3>
               <p className="text-[10px] text-slate-400 mb-3 max-w-xs">{t('roomFinishedStatus')}</p>
-              <button 
-                onClick={onResumeMatch}
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg border border-indigo-500 shadow-md active:scale-95 transition-all"
-              >
-                {t('resumeMatchBtn')}
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={onResumeMatch}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg border border-indigo-500 shadow-md active:scale-95 transition-all"
+                >
+                  {t('resumeMatchBtn')}
+                </button>
+                <button 
+                  onClick={onExitMatch}
+                  className="px-3.5 py-1.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 font-bold text-[10px] rounded-lg border border-rose-800/40 shadow-md active:scale-95 transition-all"
+                >
+                  {lang === 'en' ? 'Exit Room' : 'ออกจากห้อง'}
+                </button>
+              </div>
             </div>
           )}
           
@@ -3530,12 +3538,20 @@ function TrackerView({
               <Trophy className="w-12 h-12 text-amber-400 mb-2 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]" />
               <h3 className="text-sm font-black text-white mb-0.5">{t('matchHasEnded')}</h3>
               <p className="text-[10px] text-slate-400 mb-3 max-w-xs">{t('roomFinishedStatus')}</p>
-              <button 
-                onClick={onResumeMatch}
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg border border-indigo-500 shadow-md active:scale-95 transition-all"
-              >
-                {t('resumeMatchBtn')}
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={onResumeMatch}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg border border-indigo-500 shadow-md active:scale-95 transition-all"
+                >
+                  {t('resumeMatchBtn')}
+                </button>
+                <button 
+                  onClick={onExitMatch}
+                  className="px-3.5 py-1.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 font-bold text-[10px] rounded-lg border border-rose-800/40 shadow-md active:scale-95 transition-all"
+                >
+                  {lang === 'en' ? 'Exit Room' : 'ออกจากห้อง'}
+                </button>
+              </div>
             </div>
           )}
           
@@ -6255,7 +6271,7 @@ export default function App() {
       currentY += 20;
       compilePlayerStatsTable(doc, 'home', homeAllEvents, currentY, tableFont);
 
-      // Draw Home graphics next to each other
+        // Draw Home graphics next to each other
       currentY = (doc as any).lastAutoTable.finalY + 35;
       doc.setFontSize(9.5);
       doc.setFont(tableFont, 'bold');
@@ -6618,6 +6634,10 @@ export default function App() {
                 onManualEndSet={handleManualEndSet}
                 onManualEndMatch={handleManualEndMatch}
                 onResumeMatch={handleResumeMatch}
+                onExitMatch={() => {
+                  setActiveRoom(null);
+                  setRole(ROLES.UNASSIGNED);
+                }}
                 role={role} 
                 score={matchData.score}
                 teamNames={matchData.teamNames || { home: "HOME", away: "AWAY" }}
@@ -6714,6 +6734,10 @@ export default function App() {
                     onManualEndSet={handleManualEndSet}
                     onManualEndMatch={handleManualEndMatch}
                     onResumeMatch={handleResumeMatch}
+                    onExitMatch={() => {
+                      setActiveRoom(null);
+                      setRole(ROLES.UNASSIGNED);
+                    }}
                     role={role} 
                     score={matchData.score}
                     teamNames={matchData.teamNames || { home: "HOME", away: "AWAY" }}
