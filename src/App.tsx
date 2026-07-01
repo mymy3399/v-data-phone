@@ -3411,7 +3411,7 @@ function TrackerView({
                     <button
                       key={`p-panel-${zoneNum}-${num}`}
                       onClick={() => setCurrentEvent(prev => ({ ...prev, player: num, startZone: zoneNum }))}
-                      className={`py-2 sm:py-3.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
+                      className={`py-1.5 sm:py-2.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
                         ${currentEvent.player === num ? 'bg-amber-500 border-amber-400 text-slate-900 ring-2 ring-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}
                       `}
                     >
