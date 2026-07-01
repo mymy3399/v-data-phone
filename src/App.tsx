@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './translations';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import autoTable from 'jspdf-autotable';
 import { 
   ClipboardList, MonitorPlay, Check, X, Undo2, Settings, 
   Users, RotateCcw, AlertCircle, BarChart3, Swords, LogIn, Plus, Copy, CloudLightning, Download, BookOpen, ChevronRight, Link2, Trophy, PlayCircle, ChevronLeft,
@@ -5310,9 +5311,6 @@ export default function App() {
   };
 
   const handleExportPDF = () => {
-    // Attach html2canvas to window so jsPDF can find it globally
-    (window as any).html2canvas = html2canvas;
-
     // Show generating loading overlay
     const loadingEl = document.createElement('div');
     loadingEl.style.position = 'fixed';
@@ -5327,16 +5325,16 @@ export default function App() {
     loadingEl.style.alignItems = 'center';
     loadingEl.style.zIndex = '99999';
     loadingEl.style.color = '#fff';
-    loadingEl.style.fontFamily = 'Sarabun, Inter, sans-serif';
+    loadingEl.style.fontFamily = 'sans-serif';
     loadingEl.innerHTML = `
       <div style="font-size: 20px; font-weight: 800; margin-bottom: 12px;">${lang === 'en' ? 'Generating PDF Report...' : 'กำลังสร้างรายงาน PDF...'}</div>
-      <div style="font-size: 14px; color: #94a3b8;">${lang === 'en' ? 'Please wait, rendering report structure.' : 'กรุณารอการบันทึกสักครู่ ระบบกำลังจัดทำสถิติลงไฟล์ PDF'}</div>
+      <div style="font-size: 14px; color: #94a3b8;">${lang === 'en' ? 'Please wait, compiling structured tables and graphics.' : 'กรุณารอการบันทึกสักครู่ ระบบกำลังรวบรวมข้อมูลลงตารางและกราฟิกสำหรับไฟล์ PDF'}</div>
     `;
     document.body.appendChild(loadingEl);
 
-    // Helper: Skills Overall Table
-    const compileTeamStatsHtml = (team, tEvents) => {
-      return SKILLS.map(skill => {
+    // Helpers to draw tables and graphics programmatically
+    const compileTeamStatsTable = (doc, team, tEvents, startY, tableFont) => {
+      const body = SKILLS.map(skill => {
         const sEvents = tEvents.filter(e => e.skill === skill.id);
         const total = sEvents.length;
         const perfect = sEvents.filter(e => e.eval === '#').length;
@@ -5346,20 +5344,103 @@ export default function App() {
         
         const effPercent = total > 0 ? (((perfect + good) / total) * 100).toFixed(0) : '0';
         const errPercent = total > 0 ? (((error + blocked) / total) * 100).toFixed(0) : '0';
-        
-        return `
-          <tr>
-            <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${getLocalizedSkillLabel(skill.id, lang)}</td>
-            <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-family: monospace;">${total}</td>
-            <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #059669; font-weight: 800;">${effPercent}%</td>
-            <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #e11d48; font-weight: bold;">${errPercent}%</td>
-          </tr>
-        `;
-      }).join('');
+
+        return [
+          getLocalizedSkillLabel(skill.id, lang),
+          total.toString(),
+          `${effPercent}%`,
+          `${errPercent}%`
+        ];
+      });
+
+      const headers = [
+        lang === 'en' ? 'Skill' : 'ทักษะ',
+        lang === 'en' ? 'Total' : 'จำนวน',
+        lang === 'en' ? '% Good (+)' : '% ดี (+)',
+        lang === 'en' ? '% Error (-)' : '% เสีย (-)'
+      ];
+
+      autoTable(doc, {
+        startY: startY,
+        margin: { left: 40, right: 40 },
+        head: [headers],
+        body: body,
+        styles: { font: tableFont, fontSize: 8, cellPadding: 4 },
+        headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: {
+          0: { halign: 'left' },
+          1: { halign: 'center', cellWidth: 70 },
+          2: { halign: 'center', cellWidth: 80 },
+          3: { halign: 'center', cellWidth: 80 },
+        },
+        theme: 'grid'
+      });
     };
 
-    // Helper: Heatmap Attack Zones Court Graphic
-    const compileHeatmapHtml = (team, tEvents) => {
+    const compilePlayerStatsTable = (doc, team, tEvents, startY, tableFont) => {
+      const teamRoster = matchData.roster?.[team] || {};
+      const body = Object.entries(teamRoster).map(([num, details]: [string, any]) => {
+        const pEvents = tEvents.filter(e => e.player === num);
+        const totalActions = pEvents.length;
+        const perfect = pEvents.filter(e => e.eval === '#').length;
+        const good = pEvents.filter(e => e.eval === '+').length;
+        const error = pEvents.filter(e => e.eval === '=').length;
+        const blocked = pEvents.filter(e => e.eval === '/').length;
+        
+        const successPercent = totalActions > 0 ? (((perfect + good) / totalActions) * 100).toFixed(0) : '0';
+        const errorPercent = totalActions > 0 ? (((error + blocked) / totalActions) * 100).toFixed(0) : '0';
+        const ratioText = totalActions > 0 ? `+${successPercent}% / -${errorPercent}%` : '-';
+        
+        const skillCounts = SKILLS.map(s => {
+          const count = pEvents.filter(e => e.skill === s.id).length;
+          return count > 0 ? count.toString() : '-';
+        });
+
+        return [
+          num,
+          details.name || '-',
+          details.position || '-',
+          totalActions.toString(),
+          ratioText,
+          ...skillCounts
+        ];
+      });
+
+      const headers = [
+        t('playerNo'),
+        t('playerName'),
+        t('playerPos'),
+        t('totalActions'),
+        '+/-% Ratio',
+        ...SKILLS.map(s => s.label.split(' ')[0])
+      ];
+
+      autoTable(doc, {
+        startY: startY,
+        margin: { left: 40, right: 40 },
+        head: [headers],
+        body: body,
+        styles: { font: tableFont, fontSize: 7.5, cellPadding: 4 },
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 35, halign: 'center' },
+          3: { cellWidth: 45, halign: 'center' },
+          4: { cellWidth: 70, halign: 'center' },
+          5: { halign: 'center' },
+          6: { halign: 'center' },
+          7: { halign: 'center' },
+          8: { halign: 'center' },
+          9: { halign: 'center' },
+          10: { halign: 'center' },
+        },
+        theme: 'grid'
+      });
+    };
+
+    const drawHeatmap = (doc, startX, startY, width, height, team, tEvents) => {
+      const cellW = width / 3;
+      const cellH = height / 2;
       const strengths = Array(7).fill(0);
       const weaknesses = Array(7).fill(0);
       let totalZones = 0;
@@ -5374,515 +5455,328 @@ export default function App() {
         }
       });
 
-      // Volleyball opponent court grid mapping (from bottom to top relative to net at bottom):
-      // Row 1: Zone 5, Zone 6, Zone 1 (backrow)
-      // Row 2: Zone 4, Zone 3, Zone 2 (frontrow)
-      const zoneHtml = [5, 6, 1, 4, 3, 2].map(zone => {
-        const s = strengths[zone] || 0;
-        const w = weaknesses[zone] || 0;
-        const totalInZone = tEvents.filter(e => e.team === team && e.endZone === zone).length;
-        const distPercent = totalZones > 0 ? ((totalInZone / totalZones) * 100).toFixed(0) : '0';
+      const zones = [
+        [5, 6, 1], // Row 1 (backrow)
+        [4, 3, 2]  // Row 2 (frontrow)
+      ];
 
-        // Color cell based on performance: green for success, red for error, slate for neutral
-        let bg = '#f8fafc';
-        let border = '#cbd5e1';
-        let text = '#334155';
-        if (s > 0 || w > 0) {
-          if (s >= w) {
-            bg = s >= 3 ? '#10b981' : '#a7f3d0'; // bold green vs light green
-            text = s >= 3 ? '#ffffff' : '#047857';
-            border = s >= 3 ? '#059669' : '#86efac';
-          } else {
-            bg = w >= 3 ? '#ef4444' : '#fecdd3'; // bold red vs light red
-            text = w >= 3 ? '#ffffff' : '#b91c1c';
-            border = w >= 3 ? '#dc2626' : '#fca5a5';
+      doc.setDrawColor(71, 85, 105);
+      doc.setLineWidth(1);
+
+      for (let r = 0; r < 2; r++) {
+        for (let c = 0; c < 3; c++) {
+          const zone = zones[r][c];
+          const s = strengths[zone] || 0;
+          const w = weaknesses[zone] || 0;
+          const totalInZone = tEvents.filter(e => e.team === team && e.endZone === zone).length;
+          const distPercent = totalZones > 0 ? ((totalInZone / totalZones) * 100).toFixed(0) : '0';
+
+          let bg = [248, 250, 252];
+          let textCol = [51, 65, 85];
+          if (s > 0 || w > 0) {
+            if (s >= w) {
+              bg = s >= 3 ? [16, 185, 129] : [167, 243, 208];
+              textCol = s >= 3 ? [255, 255, 255] : [4, 120, 87];
+            } else {
+              bg = w >= 3 ? [239, 68, 68] : [254, 205, 211];
+              textCol = w >= 3 ? [255, 255, 255] : [185, 28, 28];
+            }
+          }
+
+          const cellX = startX + c * cellW;
+          const cellY = startY + r * cellH;
+
+          doc.setFillColor(bg[0], bg[1], bg[2]);
+          doc.rect(cellX, cellY, cellW, cellH, 'F');
+          doc.rect(cellX, cellY, cellW, cellH, 'S');
+
+          doc.setTextColor(textCol[0], textCol[1], textCol[2]);
+          doc.setFont('Sarabun', 'bold');
+          doc.setFontSize(7.5);
+          doc.text(`Zone ${zone}`, cellX + cellW / 2, cellY + 11, { align: 'center' });
+          
+          doc.setFontSize(11);
+          doc.text(`${distPercent}%`, cellX + cellW / 2, cellY + 23, { align: 'center' });
+
+          doc.setFont('Sarabun', 'normal');
+          doc.setFontSize(7.5);
+          doc.text(`+${s} / -${w}`, cellX + cellW / 2, cellY + 33, { align: 'center' });
+        }
+      }
+    };
+
+    const drawSetterRotations = (doc, startX, startY, team, tEvents) => {
+      const courtW = 75;
+      const courtH = 50;
+      const cellW = courtW / 3;
+      const cellH = courtH / 2;
+
+      const rotations = [1, 6, 5, 2, 3, 4];
+      const gridPositions = [
+        [4, 3, 2], // Row 1
+        [5, 6, 1]  // Row 2
+      ];
+
+      doc.setFont('Sarabun', 'bold');
+      doc.setFontSize(7.5);
+
+      rotations.forEach((zone, idx) => {
+        const col = idx % 3;
+        const row = Math.floor(idx / 3);
+        const courtX = startX + col * (courtW + 15);
+        const courtY = startY + row * (courtH + 28);
+
+        // Title
+        doc.setTextColor(71, 85, 105);
+        const rotTitle = lang === "en" ? `Setter R${zone}` : `ตัวเซต R${zone}`;
+        doc.text(rotTitle, courtX + courtW / 2, courtY - 3, { align: 'center' });
+
+        // Draw Court Pos
+        doc.setDrawColor(148, 163, 184);
+        doc.setLineWidth(0.8);
+
+        for (let r = 0; r < 2; r++) {
+          for (let c = 0; c < 3; c++) {
+            const z = gridPositions[r][c];
+            const isSetter = z === zone;
+            
+            let bg = isSetter ? [245, 158, 11] : [241, 245, 249];
+            let textCol = isSetter ? [255, 255, 255] : [100, 116, 139];
+            let label = isSetter ? 'SET' : `R${z}`;
+
+            const cellX = courtX + c * cellW;
+            const cellY = courtY + r * cellH;
+
+            doc.setFillColor(bg[0], bg[1], bg[2]);
+            doc.rect(cellX, cellY, cellW, cellH, 'F');
+            doc.rect(cellX, cellY, cellW, cellH, 'S');
+
+            doc.setTextColor(textCol[0], textCol[1], textCol[2]);
+            doc.setFontSize(5.5);
+            doc.text(label, cellX + cellW / 2, cellY + cellH / 2 + 2, { align: 'center' });
           }
         }
 
-        return `
-          <div style="
-            background: ${bg};
-            border: 2px solid ${border};
-            color: ${text};
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 8px 4px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 800;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-            aspect-ratio: 1.35;
-          ">
-            <div style="font-size: 9px; opacity: 0.85; margin-bottom: 2px;">Zone ${zone}</div>
-            <div style="font-size: 14px; font-weight: 900; margin-bottom: 1px;">${distPercent}%</div>
-            <div style="font-size: 10px; font-weight: 900; letter-spacing: -0.5px;">
-              <span>+${s}</span> / <span style="opacity: 0.95;">-${w}</span>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      return `
-        <div style="
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 6px;
-          background: #e2e8f0;
-          border: 4px solid #475569;
-          border-radius: 12px;
-          padding: 8px;
-          width: 100%;
-          max-width: 280px;
-          margin: 10px auto;
-          box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        ">
-          ${zoneHtml}
-        </div>
-      `;
-    };
-
-    // Helper: Setter Rotation 6-Courts Graphic Grid
-    const compileRotationHtml = (team, tEvents) => {
-      let courtsHtml = '';
-      [1, 6, 5, 2, 3, 4].forEach(zone => {
+        // Win/Loss ratios
         const rotEvents = tEvents.filter(e => e.team === team && (team === 'home' ? e.setterZoneHome === zone : e.setterZoneAway === zone));
         const total = rotEvents.length;
         const wins = rotEvents.filter(e => e.eval === '#' || e.eval === '+').length;
         const errors = rotEvents.filter(e => e.eval === '=' || e.eval === '/').length;
         const winPercent = total > 0 ? ((wins / total) * 100).toFixed(0) : '0';
 
-        // Grid cells for volleyball court (Row 1: 4, 3, 2; Row 2: 5, 6, 1)
-        const cellsHtml = [4, 3, 2, 5, 6, 1].map(z => {
-          const isSetter = z === zone;
-          let cellBg = isSetter ? '#f59e0b' : '#f1f5f9';
-          let cellText = isSetter ? '#ffffff' : '#64748b';
-          let cellFontWeight = isSetter ? '900' : '500';
-          let cellBorder = isSetter ? '#cbd5e1' : '#e2e8f0';
-          let cellTextContent = isSetter ? 'SET' : `R${z}`;
-          
-          return `
-            <div style="
-              background: ${cellBg};
-              color: ${cellText};
-              border: 1px solid ${cellBorder};
-              font-size: 8px;
-              font-weight: ${cellFontWeight};
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              border-radius: 3px;
-              aspect-ratio: 1.5;
-            ">
-              ${cellTextContent}
-            </div>
-          `;
-        }).join('');
+        doc.setFont('Sarabun', 'bold');
+        doc.setTextColor(51, 65, 85);
+        doc.setFontSize(7);
+        doc.text(`+${wins} / -${errors} (${total})`, courtX + courtW / 2, courtY + courtH + 7, { align: 'center' });
 
-        courtsHtml += `
-          <div style="
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 8px 6px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-          ">
-            <div style="font-size: 10px; font-weight: 800; color: #475569; margin-bottom: 4px; white-space: nowrap;">${lang === "en" ? `Setter R${zone}` : `ตัวเซตยืน R${zone}`}</div>
-            
-            <div style="
-              display: grid;
-              grid-template-columns: repeat(3, 1fr);
-              gap: 2px;
-              background: #94a3b8;
-              border: 1px solid #94a3b8;
-              padding: 2px;
-              border-radius: 4px;
-              width: 80px;
-              margin-bottom: 4px;
-            ">
-              ${cellsHtml}
-            </div>
-            
-            <div style="font-size: 9px; font-weight: 800; color: #334155; margin-bottom: 1px; letter-spacing: -0.3px;">
-              <span style="color: #059669;">+${wins}</span> / <span style="color: #e11d48;">-${errors}</span>
-              <span style="color: #64748b; font-size: 8px; font-weight: 500;"> (${total})</span>
-            </div>
-            <div style="font-size: 11px; font-weight: 900; color: #4f46e5;">
-              ${winPercent}%
-            </div>
-          </div>
-        `;
+        doc.setTextColor(79, 70, 229);
+        doc.setFontSize(8.5);
+        doc.text(`${winPercent}%`, courtX + courtW / 2, courtY + courtH + 16, { align: 'center' });
+      });
+    };
+
+    // Helper: Async fetch font from url and return base64
+    const fetchFontBase64 = async (url) => {
+      const res = await fetch(url);
+      const buffer = await res.arrayBuffer();
+      const binary = new Uint8Array(buffer).reduce((acc, byte) => acc + String.fromCharCode(byte), '');
+      return btoa(binary);
+    };
+
+    // Load fonts and compile PDF
+    Promise.all([
+      fetchFontBase64('https://fonts.gstatic.com/s/sarabun/v13/DtVjca26wvi979dEqx-S.ttf'), // Regular
+      fetchFontBase64('https://fonts.gstatic.com/s/sarabun/v13/DtVkca26wvi979dEqyGP4y2n.ttf')  // Bold
+    ]).then(([regularBase64, boldBase64]) => {
+      generatePDF(regularBase64, boldBase64);
+    }).catch(err => {
+      console.error("Failed to load Sarabun font, falling back to Helvetica...", err);
+      generatePDF(null, null);
+    });
+
+    const generatePDF = (regularBase64, boldBase64) => {
+      const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'pt',
+        format: 'a4'
       });
 
-      return `
-        <div style="
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-          margin-top: 15px;
-        ">
-          \${courtsHtml}
-        </div>
-      `;
-    };
+      const tableFont = regularBase64 ? 'Sarabun' : 'Helvetica';
 
-    // Helper: Individual Player Stats Table
-    const compilePlayerStatsHtml = (team, tEvents) => {
-      const teamRoster = matchData.roster?.[team] || {};
-      const stats = Object.entries(teamRoster).map(([num, details]: [string, any]) => {
-        const pEvents = tEvents.filter(e => e.player === num);
-        const totalActions = pEvents.length;
-        const perfect = pEvents.filter(e => e.eval === '#').length;
-        const good = pEvents.filter(e => e.eval === '+').length;
-        const error = pEvents.filter(e => e.eval === '=').length;
-        const blocked = pEvents.filter(e => e.eval === '/').length;
+      if (regularBase64 && boldBase64) {
+        doc.addFileToVFS('Sarabun-Regular.ttf', regularBase64);
+        doc.addFont('Sarabun-Regular.ttf', 'Sarabun', 'normal');
+
+        doc.addFileToVFS('Sarabun-Bold.ttf', boldBase64);
+        doc.addFont('Sarabun-Bold.ttf', 'Sarabun', 'bold');
+
+        doc.setFont('Sarabun', 'normal');
+      } else {
+        doc.setFont('Helvetica', 'normal');
+      }
+
+      const homeName = matchData.teamNames?.home || "HOME";
+      const awayName = matchData.teamNames?.away || "AWAY";
+
+      // PAGE 1: COVER and OVERALL MATCH SUMMARY
+      doc.setFontSize(16);
+      doc.setFont(tableFont, 'bold');
+      doc.text("V Project - Detailed Match Analytical Report", 40, 55);
+
+      doc.setFontSize(9);
+      doc.setFont(tableFont, 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`LIVE ROOM: ${activeRoom || 'Local Match'}`, 40, 70);
+
+      // Divider line
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(1);
+      doc.line(40, 78, 555, 78);
+
+      // Match Score
+      doc.setFontSize(10);
+      doc.setTextColor(148, 163, 184);
+      doc.text("Official Match Score", 297, 105, { align: 'center' });
+
+      doc.setFontSize(22);
+      doc.setFont(tableFont, 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${homeName} ${matchData.score.home} : ${matchData.score.away} ${awayName}`, 297, 132, { align: 'center' });
+
+      doc.setFontSize(11);
+      doc.setTextColor(79, 70, 229);
+      doc.text(`SET ${matchData.score.set}`, 297, 150, { align: 'center' });
+
+      // Draw per-set scores using autoTable
+      let setScoresStartY = 165;
+      const setScores = matchData.setScores || [];
+      if (setScores.length > 0) {
+        const setHeaders = ['Set', homeName, '', awayName];
+        const setRows = setScores.map(s => [
+          `Set ${s.setNum}`,
+          s.home.toString(),
+          'vs',
+          s.away.toString()
+        ]);
+        autoTable(doc, {
+          startY: setScoresStartY,
+          margin: { left: 180, right: 180 },
+          head: [setHeaders],
+          body: setRows,
+          styles: { font: tableFont, fontSize: 8, halign: 'center', cellPadding: 3 },
+          headStyles: { fillColor: [224, 231, 255], textColor: [79, 70, 229], fontStyle: 'bold' },
+          theme: 'grid'
+        });
+        setScoresStartY = (doc as any).lastAutoTable.finalY + 15;
+      }
+
+      // Title Part 1
+      doc.setFontSize(13);
+      doc.setFont(tableFont, 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(lang === 'en' ? 'PART 1: OVERALL MATCH SUMMARY' : 'ส่วนที่ 1: สรุปผลสถิติภาพรวมตลอดการแข่งขัน', 40, setScoresStartY + 10);
+
+      // Home overall table
+      doc.setFontSize(10.5);
+      doc.text(`${homeName} (HOME) - ${lang === 'en' ? 'Skills Performance Overview' : 'ประสิทธิภาพทักษะภาพรวม'}`, 40, setScoresStartY + 28);
+      
+      const homeAllEvents = matchData.events.filter(e => e.team === 'home');
+      const awayAllEvents = matchData.events.filter(e => e.team === 'away');
+
+      compileTeamStatsTable(doc, 'home', homeAllEvents, setScoresStartY + 35, tableFont);
+      
+      // Away overall table
+      doc.setFontSize(10.5);
+      doc.text(`${awayName} (AWAY) - ${lang === 'en' ? 'Skills Performance Overview' : 'ประสิทธิภาพทักษะภาพรวม'}`, 40, (doc as any).lastAutoTable.finalY + 20);
+      compileTeamStatsTable(doc, 'away', awayAllEvents, (doc as any).lastAutoTable.finalY + 27, tableFont);
+
+      // PAGE 2: HOME OVERALL DETAILS
+      doc.addPage();
+      doc.setFontSize(13);
+      doc.setFont(tableFont, 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${homeName} (HOME) - OVERALL DETAILS & GRAPHICS`, 40, 45);
+      compilePlayerStatsTable(doc, 'home', homeAllEvents, 55, tableFont);
+
+      // Draw Home graphics next to each other
+      let finalY = (doc as any).lastAutoTable.finalY + 25;
+      doc.setFontSize(9.5);
+      doc.setFont(tableFont, 'bold');
+      doc.text(lang === 'en' ? 'Attack Zones Heatmap' : 'แผนภาพวิเคราะห์ทิศทางการโจมตี (Heatmap)', 120, finalY, { align: 'center' });
+      doc.text(lang === 'en' ? 'Setter Rotations Performance' : 'วิเคราะห์ประสิทธิภาพหน้าเซต (Setter Rotations)', 375, finalY, { align: 'center' });
+
+      drawHeatmap(doc, 40, finalY + 8, 160, 110, 'home', homeAllEvents);
+      drawSetterRotations(doc, 240, finalY + 8, 'home', homeAllEvents);
+
+      // PAGE 3: AWAY OVERALL DETAILS
+      doc.addPage();
+      doc.setFontSize(13);
+      doc.setFont(tableFont, 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${awayName} (AWAY) - OVERALL DETAILS & GRAPHICS`, 40, 45);
+      compilePlayerStatsTable(doc, 'away', awayAllEvents, 55, tableFont);
+
+      finalY = (doc as any).lastAutoTable.finalY + 25;
+      doc.setFontSize(9.5);
+      doc.setFont(tableFont, 'bold');
+      doc.text(lang === 'en' ? 'Attack Zones Heatmap' : 'แผนภาพวิเคราะห์ทิศทางการโจมตี (Heatmap)', 120, finalY, { align: 'center' });
+      doc.text(lang === 'en' ? 'Setter Rotations Performance' : 'วิเคราะห์ประสิทธิภาพหน้าเซต (Setter Rotations)', 375, finalY, { align: 'center' });
+
+      drawHeatmap(doc, 40, finalY + 8, 160, 110, 'away', awayAllEvents);
+      drawSetterRotations(doc, 240, finalY + 8, 'away', awayAllEvents);
+
+      // PAGE 4+: SET-BY-SET breakdowns
+      const currentTotalSets = matchData.score.set;
+      for (let setNum = 1; setNum <= currentTotalSets; setNum++) {
+        doc.addPage();
         
-        const successPercent = totalActions > 0 ? (((perfect + good) / totalActions) * 100).toFixed(0) : '0';
-        const errorPercent = totalActions > 0 ? (((error + blocked) / totalActions) * 100).toFixed(0) : '0';
-        
-        const skillBreakdowns = SKILLS.map(s => {
-          const count = pEvents.filter(e => e.skill === s.id).length;
-          return `<td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-size: 12px;">${count > 0 ? count : '-'}</td>`;
-        }).join('');
+        const setEvents = matchData.events.filter(e => e.set === setNum);
+        const homeSetEvents = setEvents.filter(e => e.team === 'home');
+        const awaySetEvents = setEvents.filter(e => e.team === 'away');
+        const compScore = matchData.setScores?.find(s => s.setNum === setNum);
+        const scoreText = compScore ? `(Score: ${compScore.home} - ${compScore.away})` : '';
 
-        return `
-          <tr>
-            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-weight: bold; font-size: 12px;">${num}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; font-weight: 600; font-size: 12px;">${details.name || '-'}</td>
-            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-size: 12px;">
-              <span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #475569;">${details.position || '-'}</span>
-            </td>
-            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-weight: bold; font-family: monospace; font-size: 12px;">${totalActions}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 12px;">
-              ${totalActions > 0 
-                ? `<span style="color: #059669; font-weight: 800;">+${successPercent}%</span> / <span style="color: #e11d48; font-weight: bold;">-${errorPercent}%</span>`
-                : `<span style="color: #94a3b8;">-</span>`
-              }
-            </td>
-            ${skillBreakdowns}
-          </tr>
-        `;
-      }).join('');
+        doc.setFontSize(13);
+        doc.setFont(tableFont, 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(lang === 'en' ? `PART 2: SET ${setNum} DETAILED ANALYSIS ${scoreText}` : `ส่วนที่ 2: บทวิเคราะห์สถิติอย่างละเอียด เซต ${setNum} ${scoreText}`, 40, 40);
 
-      const skillHeaders = SKILLS.map(s => `
-        <th style="padding: 8px; text-align: center; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${s.label.split(' ')[0]}</th>
-      `).join('');
+        // HOME Set Stats header
+        doc.setFontSize(10.5);
+        doc.setTextColor(79, 70, 229);
+        doc.text(`${homeName} (HOME) - Set ${setNum}`, 40, 60);
+        compileTeamStatsTable(doc, 'home', homeSetEvents, 67, tableFont);
 
-      return `
-        <div style="margin-top: 25px; overflow-x: auto;">
-          <div style="font-size: 14px; font-weight: 800; margin-bottom: 12px; color: #334155; text-transform: uppercase; letter-spacing: 0.5px;">📊 ${t('playerStatsTitle')}</div>
-          <table style="width: 100%; border-collapse: collapse; min-w: 600px;">
-            <thead>
-              <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
-                <th style="padding: 8px; text-align: center; width: 40px; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${t('playerNo')}</th>
-                <th style="padding: 8px; text-align: left; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${t('playerName')}</th>
-                <th style="padding: 8px; text-align: center; width: 60px; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${t('playerPos')}</th>
-                <th style="padding: 8px; text-align: center; width: 85px; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">${t('totalActions')}</th>
-                <th style="padding: 8px; text-align: center; width: 120px; font-size: 11px; font-weight: bold; border-bottom: 2px solid #cbd5e1; background: #f1f5f9;">+/-% Ratio</th>
-                ${skillHeaders}
-              </tr>
-            </thead>
-            <tbody>
-              ${stats}
-            </tbody>
-          </table>
-        </div>
-      `;
+        let setGraphicsY = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(8.5);
+        doc.setFont(tableFont, 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(lang === 'en' ? 'Set Attack Zones' : 'ทิศทางบุก เซต ' + setNum, 120, setGraphicsY, { align: 'center' });
+        doc.text(lang === 'en' ? 'Set Setter Rotations' : 'หน้าเซต เซต ' + setNum, 375, setGraphicsY, { align: 'center' });
+        drawHeatmap(doc, 40, setGraphicsY + 5, 160, 90, 'home', homeSetEvents);
+        drawSetterRotations(doc, 240, setGraphicsY + 5, 'home', homeSetEvents);
+
+        // AWAY Set Stats header
+        let awayStartY = setGraphicsY + 115;
+        doc.setFontSize(10.5);
+        doc.setTextColor(225, 29, 72);
+        doc.text(`${awayName} (AWAY) - Set ${setNum}`, 40, awayStartY);
+        compileTeamStatsTable(doc, 'away', awaySetEvents, awayStartY + 7, tableFont);
+
+        let setGraphicsYAway = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(8.5);
+        doc.setFont(tableFont, 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(lang === 'en' ? 'Set Attack Zones' : 'ทิศทางบุก เซต ' + setNum, 120, setGraphicsYAway, { align: 'center' });
+        doc.text(lang === 'en' ? 'Set Setter Rotations' : 'หน้าเซต เซต ' + setNum, 375, setGraphicsYAway, { align: 'center' });
+        drawHeatmap(doc, 40, setGraphicsYAway + 5, 160, 90, 'away', awaySetEvents);
+        drawSetterRotations(doc, 240, setGraphicsYAway + 5, 'away', awaySetEvents);
+      }
+
+      // Save the generated document
+      doc.save(`scout_report_${activeRoom || 'match'}.pdf`);
+      document.body.removeChild(loadingEl);
     };
-
-    const homeName = matchData.teamNames?.home || "HOME";
-    const awayName = matchData.teamNames?.away || "AWAY";
-
-    // 1. Generate Match Overview Section
-    const homeAllEvents = matchData.events.filter(e => e.team === 'home');
-    const awayAllEvents = matchData.events.filter(e => e.team === 'away');
-
-    // 2. Generate Set-by-Set Section content
-    let setsContentHtml = '';
-    const currentTotalSets = matchData.score.set;
-
-    for (let setNum = 1; setNum <= currentTotalSets; setNum++) {
-      const setEvents = matchData.events.filter(e => e.set === setNum);
-      const homeSetEvents = setEvents.filter(e => e.team === 'home');
-      const awaySetEvents = setEvents.filter(e => e.team === 'away');
-      const compScore = matchData.setScores?.find(s => s.setNum === setNum);
-      const scoreDisplay = compScore ? `${compScore.home} : ${compScore.away}` : '';
-
-      setsContentHtml += `
-        <div class="section-box" style="margin-top: 45px; page-break-before: always; border-top: 6px solid #4b5563;">
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 25px;">
-            <div style="font-size: 24px; font-weight: 900; color: #1e293b; letter-spacing: -0.5px;">
-              ${lang === 'en' ? `SET ${setNum} DETAILED ANALYSIS` : `วิเคราะห์สถิติอย่างละเอียด เซต ${setNum}`}
-            </div>
-            ${scoreDisplay ? `
-              <div style="font-size: 20px; font-weight: 950; color: #4f46e5; background: #e0e7ff; padding: 4px 18px; border-radius: 20px; font-family: monospace;">
-                ${scoreDisplay}
-              </div>
-            ` : ''}
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 40px;">
-            <!-- HOME SET STATS -->
-            <div>
-              <div style="font-size: 18px; font-weight: 900; color: #4f46e5; border-bottom: 2px dashed #e2e8f0; padding-bottom: 6px; margin-bottom: 15px;">
-                ${homeName} (HOME) - Set ${setNum}
-              </div>
-              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                <thead>
-                  <tr>
-                    <th style="text-align: left; padding: 8px 10px;">${lang === 'en' ? 'Skill' : 'ทักษะ'}</th>
-                    <th style="padding: 8px 10px; width: 80px;">${lang === 'en' ? 'Total' : 'จำนวน'}</th>
-                    <th style="padding: 8px 10px; width: 100px;">${lang === 'en' ? '% Good' : '% ดี'}</th>
-                    <th style="padding: 8px 10px; width: 100px;">${lang === 'en' ? '% Error' : '% เสีย'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${compileTeamStatsHtml('home', homeSetEvents)}
-                </tbody>
-              </table>
-              <div style="display: flex; gap: 20px; margin-top: 15px; align-items: flex-start;">
-                <div style="flex: 1.1; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-                  <div style="font-size: 13px; font-weight: 800; color: #0ea5e9; text-align: center; margin-bottom: 8px;">${lang === 'en' ? 'Attack Zones' : 'ทิศทางการโจมตี'}</div>
-                  ${compileHeatmapHtml('home', homeSetEvents)}
-                </div>
-                <div style="flex: 1.9; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-                  <div style="font-size: 13px; font-weight: 800; color: #8b5cf6; text-align: center; margin-bottom: 8px;">${lang === 'en' ? 'Setter Rotations' : 'ประสิทธิภาพหน้าเซต'}</div>
-                  ${compileRotationHtml('home', homeSetEvents)}
-                </div>
-              </div>
-            </div>
-
-            <!-- AWAY SET STATS -->
-            <div style="margin-top: 25px;">
-              <div style="font-size: 18px; font-weight: 900; color: #e11d48; border-bottom: 2px dashed #e2e8f0; padding-bottom: 6px; margin-bottom: 15px;">
-                ${awayName} (AWAY) - Set ${setNum}
-              </div>
-              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                <thead>
-                  <tr>
-                    <th style="text-align: left; padding: 8px 10px;">${lang === 'en' ? 'Skill' : 'ทักษะ'}</th>
-                    <th style="padding: 8px 10px; width: 80px;">${lang === 'en' ? 'Total' : 'จำนวน'}</th>
-                    <th style="padding: 8px 10px; width: 100px;">${lang === 'en' ? '% Good' : '% ดี'}</th>
-                    <th style="padding: 8px 10px; width: 100px;">${lang === 'en' ? '% Error' : '% เสีย'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${compileTeamStatsHtml('away', awaySetEvents)}
-                </tbody>
-              </table>
-              <div style="display: flex; gap: 20px; margin-top: 15px; align-items: flex-start;">
-                <div style="flex: 1.1; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-                  <div style="font-size: 13px; font-weight: 800; color: #0ea5e9; text-align: center; margin-bottom: 8px;">${lang === 'en' ? 'Attack Zones' : 'ทิศทางการโจมตี'}</div>
-                  ${compileHeatmapHtml('away', awaySetEvents)}
-                </div>
-                <div style="flex: 1.9; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-                  <div style="font-size: 13px; font-weight: 800; color: #8b5cf6; text-align: center; margin-bottom: 8px;">${lang === 'en' ? 'Setter Rotations' : 'ประสิทธิภาพหน้าเซต'}</div>
-                  ${compileRotationHtml('away', awaySetEvents)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    const printContent = `
-      <html>
-      <head>
-        <title>V Project - Detailed Match Analytical Report [${activeRoom || 'Scout'}]</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700;800&family=Inter:wght@400;500;700;900&display=swap');
-          body { font-family: 'Sarabun', 'Inter', Arial, sans-serif; padding: 30px; color: #0f172a; line-height: 1.6; background: #fff; }
-          .header { border-bottom: 3px solid #334155; padding-bottom: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
-          .logo { font-size: 28px; font-weight: 900; color: #0f172a; letter-spacing: -1px; }
-          .logo span { color: #f59e0b; font-size: 14px; vertical-align: super; }
-          .match-meta { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 35px; border: 1px solid #e2e8f0; }
-          .score-card { font-size: 42px; font-weight: 900; letter-spacing: -1px; text-align: center; margin: 15px 0; color: #1e293b; }
-          
-          .section-box { border: 1px solid #cbd5e1; border-radius: 16px; padding: 25px; background: #ffffff; margin-bottom: 40px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
-          .team-title { font-size: 22px; font-weight: 900; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; }
-          .sub-title { font-size: 14px; font-weight: 800; margin-bottom: 12px; color: #334155; text-transform: uppercase; letter-spacing: 0.5px; }
-          
-          .grid-2 { display: flex; gap: 30px; margin-top: 25px; }
-          .grid-col { flex: 1; }
-          
-          table { width: 100%; border-collapse: collapse; font-size: 13px; }
-          th { text-align: center; padding: 10px; background: #f1f5f9; font-weight: 700; color: #475569; border-bottom: 2px solid #cbd5e1; }
-          .footer { margin-top: 60px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-
-          @media print {
-            .no-print { display: none !important; }
-            body { padding: 20px; background: #ffffff; }
-            .section-box { box-shadow: none !important; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="logo">V Project <span>beta</span></div>
-          <div style="font-size: 12px; text-align: right; color: #64748b; font-weight: 500;">LIVE ROOM: ${activeRoom || 'Local Match'}</div>
-        </div>
-
-        <div class="match-meta">
-          <div style="text-align: center; font-size: 13px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 2px;">Official Match Score</div>
-          <div class="score-card">${homeName} ${matchData.score.home} : ${matchData.score.away} ${awayName}</div>
-          <div style="text-align: center; font-size: 14px; font-weight: 900; color: #4f46e5; background: #e0e7ff; display: inline-block; padding: 4px 16px; border-radius: 20px; margin: 0 auto; display: block; width: fit-content;">SET ${matchData.score.set}</div>
-
-          ${(() => {
-            const setScores = matchData.setScores || [];
-            if (setScores.length === 0) return '';
-            const homeSetWins = setScores.filter(s => s.home > s.away).length;
-            const awaySetWins = setScores.filter(s => s.away > s.home).length;
-            const winner = homeSetWins > awaySetWins ? homeName : awaySetWins > homeSetWins ? awayName : null;
-            const setRows = setScores.map(s => `
-              <tr>
-                <td style="padding: 6px 12px; text-align: center; font-weight: 800; color: #4f46e5;">Set ${s.setNum}</td>
-                <td style="padding: 6px 12px; text-align: center; font-weight: 900; font-size: 16px; ${s.home > s.away ? 'color:#059669;' : 'color:#64748b;'}">${s.home}</td>
-                <td style="padding: 6px 12px; text-align: center; font-size: 11px; color:#94a3b8;">vs</td>
-                <td style="padding: 6px 12px; text-align: center; font-weight: 900; font-size: 16px; ${s.away > s.home ? 'color:#059669;' : 'color:#64748b;'}">${s.away}</td>
-              </tr>
-            `).join('');
-            return `
-              <div style="margin-top: 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; max-width: 420px; margin-left: auto; margin-right: auto;">
-                <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 2px; text-align: center; margin-bottom: 10px;">Per-Set Results</div>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <thead>
-                    <tr style="border-bottom: 2px solid #e2e8f0;">
-                      <th style="padding: 5px 12px; font-size: 11px; color: #64748b; text-align: center;">Set</th>
-                      <th style="padding: 5px 12px; font-size: 11px; color: #4f46e5; text-align: center;">${homeName}</th>
-                      <th></th>
-                      <th style="padding: 5px 12px; font-size: 11px; color: #e11d48; text-align: center;">${awayName}</th>
-                    </tr>
-                  </thead>
-                  <tbody>${setRows}</tbody>
-                </table>
-                ${winner ? `<div style="margin-top: 10px; text-align: center; font-size: 13px; font-weight: 900; color: #059669; background: #d1fae5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 6px 16px;">🏆 Match Winner: ${winner} (${homeSetWins} : ${awaySetWins})</div>` : ''}
-              </div>
-            `;
-          })()}
-        </div>
-
-        <div style="text-align: center; font-size: 26px; font-weight: 950; margin: 40px 0 20px 0; color: #0f172a; border-bottom: 3px double #cbd5e1; padding-bottom: 10px;">
-          ${lang === 'en' ? 'PART 1: OVERALL MATCH SUMMARY' : 'ส่วนที่ 1: สรุปผลสถิติภาพรวมตลอดการแข่งขัน'}
-        </div>
-
-        <!-- OVERALL HOME TEAM SECTION -->
-        <div class="section-box" style="border-top: 6px solid #4f46e5;">
-          <div class="team-title" style="color: #4f46e5;">${homeName} (HOME) - Match Overall Summary</div>
-          
-          <div class="sub-title">${lang === "en" ? 'Skills Performance Overview' : 'สถิติประสิทธิภาพการเล่นภาพรวม (Skills Performance Overview)'}</div>
-          <table style="margin-bottom: 25px;">
-            <thead>
-              <tr>
-                <th style="text-align: left; padding: 8px 10px;">${lang === "en" ? 'Skill' : 'ทักษะ (Skill)'}</th>
-                <th style="padding: 8px 10px; width: 100px;">${lang === "en" ? 'Total' : 'จำนวน (Total)'}</th>
-                <th style="padding: 8px 10px; width: 120px;">${lang === "en" ? '% Good (+)' : '% ดี (+)'}</th>
-                <th style="padding: 8px 10px; width: 120px;">${lang === "en" ? '% Error (-)' : '% เสีย (-)'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${compileTeamStatsHtml('home', homeAllEvents)}
-            </tbody>
-          </table>
-
-          <!-- Home Player Stats Table -->
-          ${compilePlayerStatsHtml('home', homeAllEvents)}
-
-          <div class="grid-2" style="display: flex; gap: 20px; margin-top: 30px; align-items: flex-start; page-break-inside: avoid;">
-            <div class="grid-col" style="flex: 1.1; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-              <div class="sub-title" style="color: #0ea5e9; text-align: center; margin-bottom: 8px;">${lang === "en" ? 'Attack Zones' : 'Attack Zones (ทิศทางการโจมตี)'}</div>
-              ${compileHeatmapHtml('home', homeAllEvents)}
-            </div>
-            <div class="grid-col" style="flex: 1.9; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-              <div class="sub-title" style="color: #8b5cf6; text-align: center; margin-bottom: 8px;">${lang === "en" ? 'Setter Rotations' : 'Setter Rotations (ประสิทธิภาพหน้าเซต)'}</div>
-              ${compileRotationHtml('home', homeAllEvents)}
-            </div>
-          </div>
-        </div>
-
-        <!-- OVERALL AWAY TEAM SECTION -->
-        <div class="section-box" style="border-top: 6px solid #e11d48; margin-top: 40px; page-break-before: always;">
-          <div class="team-title" style="color: #e11d48;">${awayName} (AWAY) - Match Overall Summary</div>
-          
-          <div class="sub-title">${lang === "en" ? 'Skills Performance Overview' : 'สถิติประสิทธิภาพการเล่นภาพรวม (Skills Performance Overview)'}</div>
-          <table style="margin-bottom: 25px;">
-            <thead>
-              <tr>
-                <th style="text-align: left; padding: 8px 10px;">Skill</th>
-                <th style="padding: 8px 10px; width: 100px;">Total</th>
-                <th style="padding: 8px 10px; width: 120px;">% Good (+)</th>
-                <th style="padding: 8px 10px; width: 120px;">% Error (-)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${compileTeamStatsHtml('away', awayAllEvents)}
-            </tbody>
-          </table>
-
-          <!-- Away Player Stats Table -->
-          ${compilePlayerStatsHtml('away', awayAllEvents)}
-
-          <div class="grid-2" style="display: flex; gap: 20px; margin-top: 30px; align-items: flex-start; page-break-inside: avoid;">
-            <div class="grid-col" style="flex: 1.1; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-              <div class="sub-title" style="color: #0ea5e9; text-align: center; margin-bottom: 8px;">Attack Zones</div>
-              ${compileHeatmapHtml('away', awayAllEvents)}
-            </div>
-            <div class="grid-col" style="flex: 1.9; display: flex; flex-direction: column; align-items: center; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
-              <div class="sub-title" style="color: #8b5cf6; text-align: center; margin-bottom: 8px;">Setter Rotations</div>
-              ${compileRotationHtml('away', awayAllEvents)}
-            </div>
-          </div>
-        </div>
-
-        <div style="text-align: center; font-size: 26px; font-weight: 950; margin: 50px 0 20px 0; color: #0f172a; border-bottom: 3px double #cbd5e1; padding-bottom: 10px; page-break-before: always;">
-          ${lang === 'en' ? 'PART 2: SET-BY-SET DETAILED ANALYSIS' : 'ส่วนที่ 2: ผลวิเคราะห์สถิติแยกตามรายเซต (Set-by-Set Analysis)'}
-        </div>
-
-        <!-- SETS BREAKDOWNS CONTENT -->
-        ${setsContentHtml}
-
-        <div class="footer">
-          Generated automatically by V Project (beta) Detailed Analytical Engine.
-        </div>
-      </body>
-      </html>
-    `;
-
-    // Create temporary container within viewport but invisible
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '0';
-    container.style.top = '0';
-    container.style.width = '800px';
-    container.style.opacity = '0.001';
-    container.style.pointerEvents = 'none';
-    container.style.zIndex = '-9999';
-    container.style.background = '#ffffff';
-    container.innerHTML = printContent;
-    document.body.appendChild(container);
-
-    const doc = new jsPDF({
-      orientation: 'p',
-      unit: 'pt',
-      format: 'a4'
-    });
-
-    doc.html(container, {
-      callback: function (pdf) {
-        pdf.save(`scout_report_${activeRoom || 'match'}.pdf`);
-        document.body.removeChild(container);
-        document.body.removeChild(loadingEl);
-      },
-      x: 0,
-      y: 0,
-      width: 595.28,
-      windowWidth: 800,
-      autoPaging: 'text'
-    });
   };
 
 
