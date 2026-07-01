@@ -3507,6 +3507,7 @@ function TrackerView({
                  setScores={setScores}
                  hideTabs={hideTabs}
                  currentServe={currentServe}
+                 tempRallyEvents={tempRallyEvents}
               />
             </div>
           </div>
@@ -3665,7 +3666,7 @@ function TrackerView({
       )}
     </div>
   );
-}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false, currentServe = null }) {
+}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false, currentServe = null, tempRallyEvents = [] }) {
   const { lang } = useContext(LanguageContext);
   const [activeTab, setActiveTab] = useState<'summary' | 'players' | 'heatmap' | 'rotation' | 'logs'>('summary');
   const [selectedSet, setSelectedSet] = useState<number | 'all'>('all');
@@ -3693,13 +3694,17 @@ function TrackerView({
     return val;
   };
 
+  const allEventsCombined = useMemo(() => {
+    return [...events, ...(tempRallyEvents || [])];
+  }, [events, tempRallyEvents]);
+
   const TeamStatusGraphics = ({ team, timeoutsCount }) => {
     const subsCount = useMemo(() => {
       const tEvents = selectedSet === 'all' 
-        ? events 
-        : events.filter(e => e.set === selectedSet);
+        ? allEventsCombined 
+        : allEventsCombined.filter(e => e.set === selectedSet);
       return tEvents.filter(e => e.team === team && e.skill === 'substitute').length;
-    }, [team, events, selectedSet]);
+    }, [team, allEventsCombined, selectedSet]);
 
     return (
       <div className="flex flex-wrap items-center gap-3 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 shadow-inner shrink-0">
@@ -3751,9 +3756,9 @@ function TrackerView({
   };
 
   const filteredEvents = useMemo(() => {
-    if (selectedSet === 'all') return events;
-    return events.filter(e => e.set === selectedSet);
-  }, [events, selectedSet]);
+    if (selectedSet === 'all') return allEventsCombined;
+    return allEventsCombined.filter(e => e.set === selectedSet);
+  }, [allEventsCombined, selectedSet]);
 
   const calculateStats = (team) => {
     const teamEvents = filteredEvents.filter(e => e.team === team);
@@ -6678,6 +6683,7 @@ export default function App() {
                    setScores={matchData.setScores || []}
                    hideTabs={role !== ROLES.COACH}
                    currentServe={matchData.currentServe}
+                   tempRallyEvents={matchData.tempRallyEvents || []}
                 />
               </div>
             </div>
