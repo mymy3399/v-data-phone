@@ -5265,15 +5265,26 @@ export default function App() {
     }
 
     if (matchData.events && matchData.events.length > 0) {
-      const lastEvent = matchData.events[matchData.events.length - 1];
-      
-      if (lastEvent.team && lastEvent.team !== role && role !== ROLES.COACH) {
-        const confirmUndo = window.confirm(
-          lang === 'en' 
-            ? "Warning: The last event belongs to the other team. Do you want to undo it?" 
-            : "คำเตือน: เหตุการณ์ล่าสุดเป็นของทีมตรงข้าม คุณแน่ใจหรือไม่ว่าต้องการลบ?"
-        );
-        if (!confirmUndo) return;
+      let lastEvent = null;
+      let lastEventIndex = -1;
+
+      if (role === ROLES.COACH) {
+        lastEventIndex = matchData.events.length - 1;
+        lastEvent = matchData.events[lastEventIndex];
+      } else {
+        // Find last event for this team
+        for (let i = matchData.events.length - 1; i >= 0; i--) {
+          if (matchData.events[i].team === role) {
+            lastEvent = matchData.events[i];
+            lastEventIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (!lastEvent) {
+        alert(lang === 'en' ? "No events found to undo for your team." : "ไม่พบเหตุการณ์สำหรับทีมของคุณที่จะยกเลิก");
+        return;
       }
       
       let nextScore = { ...matchData.score };
@@ -5287,7 +5298,7 @@ export default function App() {
         nextScore[winner] = Math.max(0, nextScore[winner] - 1);
         
         let prevServe = null;
-        for (let i = matchData.events.length - 2; i >= 0; i--) {
+        for (let i = lastEventIndex - 1; i >= 0; i--) {
           const evt = matchData.events[i];
           if (evt.pointWonBy) {
             prevServe = evt.pointWonBy;
