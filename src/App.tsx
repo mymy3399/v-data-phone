@@ -3355,8 +3355,13 @@ function TrackerView({
 
           {/* Step 3: Evaluations */}
           <div className="bg-slate-950/50 p-1 sm:p-1.5 rounded-xl border border-slate-800 flex-1 flex flex-col">
-            <label className="text-[9px] sm:text-[10px] text-amber-500 mb-0.5 sm:mb-1 block font-black uppercase tracking-wider">
-              {t('step3Eval')}
+            <label className="text-[9px] sm:text-[10px] text-amber-500 mb-0.5 sm:mb-1 block font-black uppercase tracking-wider flex justify-between items-center">
+              <span>{t('step3Eval')}</span>
+              {['attack', 'serve'].includes(currentEvent.skill || '') && currentEvent.endZone === null && (
+                <span className="text-rose-400 text-[7px] sm:text-[8px] bg-rose-950 px-1 py-0.5 rounded border border-rose-900 animate-pulse font-bold">
+                  {lang === 'en' ? '*TAP OPPONENT COURT' : '*แตะสนามฝั่งตรงข้ามเลือกจุดตก'}
+                </span>
+              )}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5 flex-1">
               {EVALUATIONS.map(evalObj => (
