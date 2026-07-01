@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, createContext, useContext } from '
 import { io } from 'socket.io-client';
 import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './translations';
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { 
   ClipboardList, MonitorPlay, Check, X, Undo2, Settings, 
   Users, RotateCcw, AlertCircle, BarChart3, Swords, LogIn, Plus, Copy, CloudLightning, Download, BookOpen, ChevronRight, Link2, Trophy, PlayCircle, ChevronLeft,
@@ -5309,6 +5310,9 @@ export default function App() {
   };
 
   const handleExportPDF = () => {
+    // Attach html2canvas to window so jsPDF can find it globally
+    (window as any).html2canvas = html2canvas;
+
     // Show generating loading overlay
     const loadingEl = document.createElement('div');
     loadingEl.style.position = 'fixed';
@@ -5715,38 +5719,6 @@ export default function App() {
             body { padding: 20px; background: #ffffff; }
             .section-box { box-shadow: none !important; }
           }
-          .print-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            color: #f8fafc;
-            padding: 14px 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            gap: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border: 1px solid #334155;
-          }
-          .print-tip {
-            font-size: 13px;
-            font-weight: 500;
-            color: #cbd5e1;
-          }
-          .print-btn {
-            background: #4f46e5;
-            color: #ffffff;
-            border: none;
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 700;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-          }
-          .print-btn:hover {
-            background: #4338ca;
-          }
         </style>
       </head>
       <body>
@@ -5880,12 +5852,15 @@ export default function App() {
       </html>
     `;
 
-    // Create temporary offscreen container
+    // Create temporary container within viewport but invisible
     const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
+    container.style.position = 'fixed';
+    container.style.left = '0';
     container.style.top = '0';
     container.style.width = '800px';
+    container.style.opacity = '0.001';
+    container.style.pointerEvents = 'none';
+    container.style.zIndex = '-9999';
     container.style.background = '#ffffff';
     container.innerHTML = printContent;
     document.body.appendChild(container);
