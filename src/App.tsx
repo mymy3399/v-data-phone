@@ -6554,6 +6554,32 @@ export default function App() {
         </div>
       </header>
 
+      {matchData.status === 'finished' && role !== ROLES.UNASSIGNED && (
+        <div className="bg-rose-950 border-b border-rose-900/60 p-3 sm:p-4 flex justify-between items-center px-4 sm:px-6 shrink-0 shadow-lg z-50 animate-in slide-in-from-top duration-200">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
+            <span className="text-xs sm:text-sm font-black text-rose-200 uppercase tracking-widest">{t('matchHasEnded')}</span>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleResumeMatch}
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] sm:text-[11px] rounded-lg border border-indigo-500 shadow-md active:scale-95 transition-all cursor-pointer"
+            >
+              {t('resumeMatchBtn')}
+            </button>
+            <button 
+              onClick={() => {
+                setActiveRoom(null);
+                setRole(ROLES.UNASSIGNED);
+              }}
+              className="px-3.5 py-1.5 bg-rose-950 hover:bg-rose-900 border border-rose-900/40 text-rose-300 font-bold text-[10px] sm:text-[11px] rounded-lg shadow-md active:scale-95 transition-all cursor-pointer"
+            >
+              {lang === 'en' ? 'Exit Room' : 'ออกจากห้อง'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {saveStatus && (
         <div className="bg-emerald-600 text-white text-xs py-1.5 px-4 text-center font-bold tracking-widest animate-pulse shrink-0 shadow-md">
           {saveStatus}
@@ -6630,7 +6656,7 @@ export default function App() {
       <main className="flex-1 flex flex-col md:flex-row w-full h-full gap-2 overflow-hidden p-2 min-h-0">
         {role === ROLES.UNASSIGNED ? (
           <RoleSelection onSelect={setRole} />
-        ) : isPortrait && role !== ROLES.COACH ? (
+        ) : isPortrait && role !== ROLES.COACH && matchData.status !== 'finished' ? (
           <div className="flex flex-col w-full h-full overflow-hidden transition-all duration-150">
              <TrackerView 
                 status={matchData.status}
@@ -6676,13 +6702,13 @@ export default function App() {
             {/* Dashboard / Stats layout */}
             <div 
               className={`flex flex-col gap-2 h-full min-h-0 shrink-0
-                ${role === ROLES.COACH ? 'w-full' : ''}
+                ${(role === ROLES.COACH || matchData.status === 'finished') ? 'w-full' : ''}
                 ${role !== ROLES.COACH && activeMobileView !== 'stats' ? 'hidden md:flex' : 'flex'}
               `}
               style={{
-                width: role === ROLES.COACH ? '100%' : undefined,
-                flexBasis: role === ROLES.COACH ? 'auto' : `${leftWidth}px`,
-                maxWidth: role === ROLES.COACH ? 'none' : '100%'
+                width: (role === ROLES.COACH || matchData.status === 'finished') ? '100%' : undefined,
+                flexBasis: (role === ROLES.COACH || matchData.status === 'finished') ? 'auto' : `${leftWidth}px`,
+                maxWidth: (role === ROLES.COACH || matchData.status === 'finished') ? 'none' : '100%'
               }}
             >
               <ScoreBoard 
@@ -6716,8 +6742,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Splitter bar (only shown if not COACH and role is selected) */}
-            {role !== ROLES.COACH && role !== ROLES.UNASSIGNED && (
+            {/* Splitter bar (only shown if not COACH, not finished and role is selected) */}
+            {role !== ROLES.COACH && role !== ROLES.UNASSIGNED && matchData.status !== 'finished' && (
               <div 
                 className="hidden md:flex w-2.5 hover:w-3 bg-slate-900 border-x border-slate-800 hover:bg-indigo-600 hover:border-indigo-500 cursor-col-resize self-stretch transition-all duration-150 relative items-center justify-center shrink-0 group select-none"
                 onTouchStart={handleTouchStart}
@@ -6727,8 +6753,8 @@ export default function App() {
               </div>
             )}
 
-            {/* Scouter Court View */}
-            {role !== ROLES.COACH && (
+            {/* Scouter Court View (hidden when finished to show full-width dashboard stats) */}
+            {role !== ROLES.COACH && matchData.status !== 'finished' && (
               <div className={`flex-1 bg-slate-900 rounded-xl border border-slate-700 flex flex-col relative shadow-xl overflow-hidden min-h-0
                 ${activeMobileView !== 'court' ? 'hidden md:flex' : 'flex'}
               `}>
