@@ -6531,7 +6531,7 @@ export default function App() {
             </button>
           )}
 
-          {role === ROLES.COACH && (
+          {(role === ROLES.COACH || matchData.status === 'finished') && (
             <div className="flex gap-1.5">
               <button 
                 onClick={handleExportPDF}
@@ -6735,7 +6735,7 @@ export default function App() {
                    timeouts={matchData.timeouts}
                    currentSet={matchData.score?.set || 1}
                    setScores={matchData.setScores || []}
-                   hideTabs={role !== ROLES.COACH}
+                   hideTabs={role !== ROLES.COACH && matchData.status !== 'finished'}
                    currentServe={matchData.currentServe}
                    tempRallyEvents={matchData.tempRallyEvents || []}
                 />
