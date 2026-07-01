@@ -5791,8 +5791,8 @@ export default function App() {
         drawHeatmap(doc, 40, currentY, 160, 90, 'home', homeSetEvents);
         drawSetterRotations(doc, 240, currentY, 'home', homeSetEvents);
 
-        // AWAY Set Stats header
-        currentY += 120;
+        // AWAY Set Stats header - spacing increased to 170 (extra ~5 lines) to prevent overlaps
+        currentY += 170;
         doc.setFontSize(10.5);
         doc.setTextColor(225, 29, 72);
         doc.text(`${awayName} (AWAY) - Set ${setNum}`, 40, currentY);
