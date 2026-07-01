@@ -3295,14 +3295,14 @@ function TrackerView({
     return (
       <>
         {/* Header title inside panel */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-1 sm:pb-2 mb-1.5 sm:mb-3">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-1 sm:pb-1.5 mb-1 sm:mb-1.5">
           <span className="text-[9px] sm:text-[10px] font-black text-amber-400 uppercase tracking-widest">{t('statEntryPanelTitle')}</span>
         </div>
 
-        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar gap-1.5 sm:gap-3 text-[10px] sm:text-[11px] pr-0.5 touch-pan-y">
+        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar gap-1 sm:gap-2 text-[10px] sm:text-[11px] pr-0.5 touch-pan-y">
           {/* Step 1: Player selection mapped to court rotation */}
-          <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800">
-            <label className="text-[9px] sm:text-[10.5px] text-amber-500 mb-1 font-black uppercase tracking-wider flex justify-between items-center">
+          <div className="bg-slate-950/50 p-1 sm:p-1.5 rounded-xl border border-slate-800">
+            <label className="text-[9px] sm:text-[10px] text-amber-500 mb-0.5 sm:mb-1 font-black uppercase tracking-wider flex justify-between items-center">
               <span>{t('step1Player')}</span>
               <span className="text-slate-500 text-[8px] bg-slate-900 px-1 rounded border border-slate-800">SYNCED</span>
             </label>
@@ -3318,12 +3318,12 @@ function TrackerView({
                   <button
                     key={`p-panel-${zoneNum}-${num}`}
                     onClick={() => setCurrentEvent(prev => ({ ...prev, player: num, startZone: zoneNum }))}
-                    className={`py-1.5 sm:py-2.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
+                    className={`py-1 sm:py-1.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
                       ${currentEvent.player === num ? 'bg-amber-500 border-amber-400 text-slate-900 ring-2 ring-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}
                     `}
                   >
-                    <span className="absolute top-0.5 left-1 text-[8px] sm:text-[9.5px] font-black opacity-45">R{zoneNum}</span>
-                    <span className="font-black text-base sm:text-lg md:text-xl leading-none mt-1 sm:mt-1.5">{num}</span>
+                    <span className="absolute top-0.5 left-1 text-[8px] sm:text-[9px] font-black opacity-45">R{zoneNum}</span>
+                    <span className="font-black text-sm sm:text-base md:text-lg leading-none mt-0.5 sm:mt-1">{num}</span>
                     {shortName && <span className="text-[9px] sm:text-[10px] opacity-90 mt-0.5 font-bold truncate max-w-full px-0.5">{shortName}</span>}
                     <span className="text-[8px] sm:text-[9px] opacity-70 uppercase font-bold">({details.position})</span>
                   </button>
@@ -3333,8 +3333,8 @@ function TrackerView({
           </div>
 
           {/* Step 2: Skills */}
-          <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800">
-            <label className="text-[9px] sm:text-[10.5px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
+          <div className="bg-slate-950/50 p-1 sm:p-1.5 rounded-xl border border-slate-800">
+            <label className="text-[9px] sm:text-[10px] text-amber-500 mb-0.5 sm:mb-1 block font-black uppercase tracking-wider">
               {t('step2Skill')}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5">
@@ -3342,7 +3342,7 @@ function TrackerView({
                 <button
                   key={skill.id}
                   onClick={() => setCurrentEvent(prev => ({ ...prev, skill: skill.id }))}
-                  className={`py-2.5 sm:py-4 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[11px] sm:text-xs md:text-sm
+                  className={`py-1.5 sm:py-2 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[11px] sm:text-xs md:text-sm
                     ${currentEvent.skill === skill.id ? (skill.colorActive + ' ring-2 ring-white shadow-lg') : (skill.color + ' opacity-80 hover:opacity-100')}
                   `}
                 >
@@ -3354,8 +3354,8 @@ function TrackerView({
           </div>
 
           {/* Step 3: Evaluations */}
-          <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800 flex-1 flex flex-col">
-            <label className="text-[9px] sm:text-[10.5px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
+          <div className="bg-slate-950/50 p-1 sm:p-1.5 rounded-xl border border-slate-800 flex-1 flex flex-col">
+            <label className="text-[9px] sm:text-[10px] text-amber-500 mb-0.5 sm:mb-1 block font-black uppercase tracking-wider">
               {t('step3Eval')}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5 flex-1">
@@ -3368,7 +3368,7 @@ function TrackerView({
                     }
                   }}
                   disabled={!currentEvent.player || !currentEvent.skill}
-                  className={`py-2.5 sm:py-3.5 rounded-lg font-black text-white transition-all active:scale-95 leading-none shadow-md disabled:opacity-20 disabled:scale-100 flex items-center justify-center text-[11px] sm:text-xs md:text-sm
+                  className={`py-1.5 sm:py-2 rounded-lg font-black text-white transition-all active:scale-95 leading-none shadow-md disabled:opacity-20 disabled:scale-100 flex items-center justify-center text-[11px] sm:text-xs md:text-sm
                     ${currentEvent.eval === evalObj.id ? evalObj.color + ' ring-2 ring-white scale-105 shadow-xl' : evalObj.color + ' opacity-90 hover:opacity-100 border border-black/20'}
                   `}
                 >
