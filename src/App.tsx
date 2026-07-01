@@ -2737,9 +2737,26 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
 
   const handleAddSubstitute = () => {
     if (!newSubNum || !newSubName) return;
+    const cleanNum = newSubNum.trim();
+    if (lineup.includes(cleanNum)) {
+      alert(
+        lang === 'en'
+          ? `Number #${cleanNum} is already assigned to a starting player on the court.`
+          : `หมายเลข #${cleanNum} ถูกใช้งานโดยผู้เล่นตัวจริงในสนามแล้ว`
+      );
+      return;
+    }
+    if (roster[cleanNum]) {
+      alert(
+        lang === 'en'
+          ? `Number #${cleanNum} is already used by another player.`
+          : `หมายเลข #${cleanNum} ถูกใช้งานโดยผู้เล่นคนอื่นแล้ว`
+      );
+      return;
+    }
     setRoster(prev => ({
       ...prev,
-      [newSubNum]: { name: newSubName, position: newSubPos, isStarter: false }
+      [cleanNum]: { name: newSubName, position: newSubPos, isStarter: false }
     }));
     setNewSubNum('');
     setNewSubName('');
@@ -2752,6 +2769,26 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
   };
 
   const handleSave = () => {
+    // Check for duplicate player numbers
+    const starterNums = lineup.filter(num => num && num.trim() !== '');
+    const subNums = Object.keys(roster).filter(num => num && num.trim() !== '' && !roster[num].isStarter);
+    
+    // Total list of numbers
+    const allNums = [...starterNums, ...subNums];
+    const uniqueNums = new Set(allNums);
+    
+    if (uniqueNums.size < allNums.length) {
+      const duplicates = allNums.filter((item, index) => allNums.indexOf(item) !== index);
+      const duplicateSet = Array.from(new Set(duplicates));
+      
+      alert(
+        lang === 'en'
+          ? `Duplicate player numbers found: #${duplicateSet.join(', #')}. Every player must have a unique number.`
+          : `พบหมายเลขผู้เล่นซ้ำกัน: #${duplicateSet.join(', #')} กรุณาแก้ไขให้หมายเลขไม่ซ้ำกัน`
+      );
+      return;
+    }
+
     onSave(lineup, roster, teamNames, matchInfo);
   };
 
