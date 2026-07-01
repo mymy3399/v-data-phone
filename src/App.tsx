@@ -5583,14 +5583,20 @@ export default function App() {
       return btoa(binary);
     };
 
-    // Load fonts and compile PDF
+    // Load fonts and compile PDF using path relative to window location origin & pathname
+    const getBaseUrl = () => {
+      const url = window.location.href;
+      return url.substring(0, url.lastIndexOf('/') + 1);
+    };
+    const baseUrl = getBaseUrl();
+
     Promise.all([
-      fetchFontBase64('https://fonts.gstatic.com/s/sarabun/v13/DtVjca26wvi979dEqx-S.ttf'), // Regular
-      fetchFontBase64('https://fonts.gstatic.com/s/sarabun/v13/DtVkca26wvi979dEqyGP4y2n.ttf')  // Bold
+      fetchFontBase64(baseUrl + 'fonts/Sarabun-Regular.ttf'), // Regular
+      fetchFontBase64(baseUrl + 'fonts/Sarabun-Bold.ttf')  // Bold
     ]).then(([regularBase64, boldBase64]) => {
       generatePDF(regularBase64, boldBase64);
     }).catch(err => {
-      console.error("Failed to load Sarabun font, falling back to Helvetica...", err);
+      console.error("Failed to load Sarabun font locally, falling back to Helvetica...", err);
       generatePDF(null, null);
     });
 
