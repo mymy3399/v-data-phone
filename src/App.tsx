@@ -3098,7 +3098,15 @@ function TrackerView({
   onReduceTimeout = () => {}
 }: any) {
   const { lang } = useContext(LanguageContext);
-  const t = (key) => (translations[lang] || {})[key] || (translations['th'] || {})[key] || key;
+  const t = (key: string, params?: Record<string, string | number>) => {
+    let val = (translations[lang] as any)[key] || (translations['th'] as any)[key] || key;
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        val = val.replace(`{${k}}`, String(v));
+      });
+    }
+    return val;
+  };
 
   const teamColor = role === ROLES.HOME ? 'text-indigo-400' : 'text-rose-400';
   const teamLabel = role === 'home' ? teamNames.home : teamNames.away;
@@ -3110,6 +3118,7 @@ function TrackerView({
   const [foulModalOpen, setFoulModalOpen] = useState(false);
   const [isActionPanelOpen, setIsActionPanelOpen] = useState(true);
   const [rightWidth, setRightWidth] = useState(260);
+  const [showCourtOnMobile, setShowCourtOnMobile] = useState(false);
   
   const handleRightMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -3215,7 +3224,7 @@ function TrackerView({
     return (
       <>
         {/* Opponent Court */}
-        <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mb-1 shrink min-h-0">
+        <div className={`flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] aspect-[4/3] mb-1 shrink-0 ${isPortrait ? '' : 'max-h-[36vh] min-h-0'}`}>
           <div className="text-rose-400 font-extrabold text-[9px] sm:text-[10px] mb-0.5 tracking-wider uppercase">
             {t('opponentCourtLabel')} {currentServe !== null && (currentServe === (role === 'home' ? 'away' : 'home') ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
           </div>
@@ -3241,14 +3250,14 @@ function TrackerView({
         </div>
 
         {/* Net line */}
-        <div className="w-full max-w-[240px] h-1 sm:h-1.5 bg-slate-300 z-20 shadow-[0_0_5px_rgba(255,255,255,0.5)] my-0.5 sm:my-1 relative rounded-full shrink">
+        <div className="w-full max-w-[240px] h-1 sm:h-1.5 bg-slate-300 z-20 shadow-[0_0_5px_rgba(255,255,255,0.5)] my-0.5 sm:my-1 relative rounded-full shrink-0">
            <div className="absolute inset-0 flex items-center justify-center">
               <div className="bg-slate-900 px-1.5 py-0.5 rounded-full text-[6px] sm:text-[7px] text-white font-extrabold tracking-widest leading-none border border-slate-700">NET</div>
            </div>
         </div>
 
         {/* Own Court */}
-        <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mt-1 shrink min-h-0">
+        <div className={`flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] aspect-[4/3] mt-1 shrink-0 ${isPortrait ? '' : 'max-h-[36vh] min-h-0'}`}>
           <div className="w-full h-full grid grid-cols-3 grid-rows-[1fr_2fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
             {COURT_ZONES.map(zone => {
               const playerNum = getPlayerInZone(zone.id);
@@ -3409,6 +3418,17 @@ function TrackerView({
              />
              {lang === 'en' ? 'AUTO L' : 'ลิเบอโร่ Auto'}
            </label>
+           {isPortrait && (
+             <label className="flex items-center gap-1 cursor-pointer select-none border border-slate-800 bg-slate-900 px-1.5 py-0.5 rounded text-[8px] sm:text-[9.5px] font-black text-slate-400 hover:text-slate-200 sm:hidden">
+               <input
+                 type="checkbox"
+                 checked={showCourtOnMobile}
+                 onChange={(e) => setShowCourtOnMobile(e.target.checked)}
+                 className="w-2.5 h-2.5 accent-amber-500 rounded cursor-pointer"
+               />
+               {lang === 'en' ? 'COURT' : 'แสดงสนาม'}
+             </label>
+           )}
         </div>
         
         <div className="flex gap-1 shrink-0 overflow-x-auto custom-scrollbar max-w-[65vw] sm:max-w-none pb-0.5">
@@ -3458,6 +3478,7 @@ function TrackerView({
         </div>
       </div>
 
+
       {isPortrait ? (
         /* Portrait layout: 2 Columns (Stacked on mobile, side-by-side on tablets) */
         <div className="flex-1 flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden relative min-h-0 w-full gap-2 p-1 sm:p-2">
@@ -3484,7 +3505,7 @@ function TrackerView({
           )}
           
           {/* Column 1: ScoreBoard + Mock Court + Dashboard */}
-          <div className="flex-1 flex flex-col gap-2 h-auto sm:h-full min-h-0 overflow-visible sm:overflow-y-auto custom-scrollbar touch-pan-y">
+          <div className="w-full sm:flex-1 flex flex-col gap-2 h-auto sm:h-full min-h-0 overflow-visible sm:overflow-y-auto custom-scrollbar touch-pan-y">
             {/* ScoreBoard */}
             <ScoreBoard 
               score={score} 
@@ -3501,8 +3522,8 @@ function TrackerView({
             />
 
             {/* Mock Court */}
-            <div className="bg-slate-900 rounded-xl border border-slate-800 p-2 flex flex-col items-center justify-center shrink-0 min-h-0">
-               <div className="w-full flex-1 flex flex-col items-center justify-center bg-slate-950/40 rounded-xl border border-slate-800/60 p-1 sm:p-2 min-h-0 overflow-hidden">
+            <div className={`${showCourtOnMobile ? 'flex' : 'hidden sm:flex'} bg-slate-900 rounded-xl border border-slate-800 p-2 flex-col items-center justify-center shrink-0`}>
+               <div className="w-full flex flex-col items-center justify-center bg-slate-950/40 rounded-xl border border-slate-800/60 p-1.5 sm:p-2">
                   {renderCourt()}
                </div>
             </div>
@@ -3521,12 +3542,13 @@ function TrackerView({
                  hideTabs={hideTabs}
                  currentServe={currentServe}
                  tempRallyEvents={tempRallyEvents}
+                 isPortrait={isPortrait}
               />
             </div>
           </div>
 
           {/* Column 2: Action Keying Panel */}
-          <div className="w-full sm:w-[320px] shrink-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 p-1.5 sm:p-3 h-auto sm:h-full overflow-visible sm:overflow-hidden">
+          <div className="relative w-full sm:w-[320px] shrink-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 p-1.5 sm:p-3 h-auto sm:h-full overflow-visible sm:overflow-hidden">
             {renderActionPanel()}
           </div>
         </div>
@@ -3575,7 +3597,7 @@ function TrackerView({
 
           {/* RIGHT: Action Keying Panel */}
           <div
-            className={`bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-none
+            className={`relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-none
               ${hideCourts ? 'flex-1 w-full p-2 sm:p-4' : 'p-1.5 sm:p-3'}
             `}
             style={hideCourts ? undefined : { width: `${rightWidth}px`, minWidth: '180px', maxWidth: '420px' }}
@@ -3687,7 +3709,7 @@ function TrackerView({
       )}
     </div>
   );
-}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false, currentServe = null, tempRallyEvents = [] }) {
+}function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false, currentServe = null, tempRallyEvents = [], isPortrait = false }) {
   const { lang } = useContext(LanguageContext);
   const [activeTab, setActiveTab] = useState<'summary' | 'players' | 'heatmap' | 'rotation' | 'logs'>('summary');
   const [selectedSet, setSelectedSet] = useState<number | 'all'>('all');
@@ -4329,39 +4351,46 @@ function TrackerView({
                  <span>{t('noStatsLogged')}</span>
               </div>
             ) : (
-              [...filteredEvents].reverse().map(evt => (
-                <div key={evt.id} className="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg text-[10px] border border-slate-800 shadow-sm mb-0.5 hover:border-slate-600 transition-colors">
-                  <div className="flex items-center gap-2 truncate">
-                    <span className={`w-1.5 h-4 shrink-0 rounded-full ${evt.team === 'home' ? 'bg-indigo-500' : 'bg-rose-500'}`}></span>
-                    <span className="font-mono text-[9px] text-slate-400 shrink-0 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">{evt.scoreAt}</span>
-                    {evt.timestamp && (
-                      <span className="font-mono text-[8px] text-slate-500 shrink-0 bg-slate-900/40 px-1 py-0.5 rounded border border-slate-800/30 select-none">
-                        {new Date(evt.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
-                    )}
-                    <span className="font-black text-slate-200 shrink-0 bg-slate-800 px-1.5 py-0.5 rounded shadow-inner text-[11px]">#{evt.player}</span>
-                    <span className="text-slate-300 truncate">
-                      {evt.skill === 'substitute' || evt.skill === 'timeout' || evt.skill === 'foul' ? (
-                        <span className="text-amber-400 font-bold">{evt.detail}</span>
-                      ) : (
-                        <span className="flex gap-1.5 items-center font-medium">
-                          <span className="text-white bg-slate-800 px-1.5 rounded">{getLocalizedSkillLabel(evt.skill, lang).split(' ')[0]}</span>
-                          {evt.startZone && <span className="text-[9px] text-slate-400 border border-slate-700 px-1 rounded bg-slate-900">R{evt.startZone}</span>}
-                          {evt.endZone && <span className="text-slate-500 text-[9px] leading-none">➔</span>}
-                          {evt.endZone && <span className="text-[9px] text-amber-500/90 border border-amber-900/40 px-1 rounded bg-amber-950/30">
-                            {lang === 'en' ? `Target R${evt.endZone}` : `เป้าR${evt.endZone}`}
-                          </span>}
+              <>
+                {isPortrait && filteredEvents.length > 1 && (
+                  <div className="text-[8px] text-slate-500 text-center italic mb-1.5 bg-slate-950/40 py-1 rounded border border-slate-800/40 select-none">
+                    {lang === 'en' ? `Showing last touch only (total ${filteredEvents.length})` : `แสดงจังหวะล่าสุดแถวเดียว (บันทึกสะสม ${filteredEvents.length} รายการ)`}
+                  </div>
+                )}
+                {(isPortrait ? [...filteredEvents].reverse().slice(0, 1) : [...filteredEvents].reverse()).map(evt => (
+                  <div key={evt.id} className="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg text-[10px] border border-slate-800 shadow-sm mb-0.5 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center gap-2 truncate">
+                      <span className={`w-1.5 h-4 shrink-0 rounded-full ${evt.team === 'home' ? 'bg-indigo-500' : 'bg-rose-500'}`}></span>
+                      <span className="font-mono text-[9px] text-slate-400 shrink-0 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">{evt.scoreAt}</span>
+                      {evt.timestamp && (
+                        <span className="font-mono text-[8px] text-slate-500 shrink-0 bg-slate-900/40 px-1 py-0.5 rounded border border-slate-800/30 select-none">
+                          {new Date(evt.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </span>
                       )}
-                    </span>
+                      <span className="font-black text-slate-200 shrink-0 bg-slate-800 px-1.5 py-0.5 rounded shadow-inner text-[11px]">#{evt.player}</span>
+                      <span className="text-slate-300 truncate">
+                        {evt.skill === 'substitute' || evt.skill === 'timeout' || evt.skill === 'foul' ? (
+                          <span className="text-amber-400 font-bold">{evt.detail}</span>
+                        ) : (
+                          <span className="flex gap-1.5 items-center font-medium">
+                            <span className="text-white bg-slate-800 px-1.5 rounded">{getLocalizedSkillLabel(evt.skill, lang).split(' ')[0]}</span>
+                            {evt.startZone && <span className="text-[9px] text-slate-400 border border-slate-700 px-1 rounded bg-slate-900">R{evt.startZone}</span>}
+                            {evt.endZone && <span className="text-slate-500 text-[9px] leading-none">➔</span>}
+                            {evt.endZone && <span className="text-[9px] text-amber-500/90 border border-amber-900/40 px-1 rounded bg-amber-950/30">
+                              {lang === 'en' ? `Target R${evt.endZone}` : `เป้าR${evt.endZone}`}
+                            </span>}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {evt.eval && evt.skill !== 'substitute' && evt.skill !== 'timeout' && evt.skill !== 'foul' && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-black text-white shrink-0 shadow-sm border border-black/20 ${EVALUATIONS.find(e=>e.id===evt.eval)?.color}`}>
+                        {evt.eval}
+                      </span>
+                    )}
                   </div>
-                  {evt.eval && evt.skill !== 'substitute' && evt.skill !== 'timeout' && evt.skill !== 'foul' && (
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black text-white shrink-0 shadow-sm border border-black/20 ${EVALUATIONS.find(e=>e.id===evt.eval)?.color}`}>
-                      {evt.eval}
-                    </span>
-                  )}
-                </div>
-              ))
+                ))}
+              </>
             )}
           </div>
         </div>
