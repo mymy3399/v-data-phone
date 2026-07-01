@@ -343,15 +343,15 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
           <div className="text-sm font-bold text-slate-600 leading-none">:</div>
 
           {/* Timeout status both teams */}
-          <div className="flex flex-col items-center gap-1 w-full">
-            <div className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider">T-OUT</div>
-            <div className="flex items-center justify-between w-full px-0.5 gap-1.5">
+          <div className="flex flex-col items-center gap-1 w-full bg-slate-950/60 border border-slate-800 rounded-xl p-1.5 shadow-inner">
+            <div className="text-[8.5px] font-black text-slate-400 uppercase tracking-wider">T-OUT</div>
+            <div className="flex items-center justify-center w-full gap-1.5">
               {/* Home timeout btn */}
               {(role === ROLES.HOME || role === ROLES.COACH) ? (
                 <button
                   onClick={() => onTimeout('home')}
                   disabled={timeouts?.home >= 2}
-                  className={`text-[11px] sm:text-xs font-mono font-black transition-all flex-1 text-center px-2 py-1 rounded-lg border active:scale-95 cursor-pointer shadow-md
+                  className={`text-[11px] sm:text-xs font-mono font-black transition-all flex-1 flex items-center justify-center px-2 py-1 rounded-lg border active:scale-95 cursor-pointer shadow-md
                     ${timeouts?.home >= 2 
                       ? 'bg-slate-950 border-slate-800 text-slate-600 opacity-40' 
                       : 'bg-amber-500 hover:bg-amber-400 border-amber-400 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.35)]'}`}
@@ -359,17 +359,16 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
                   {timeouts?.home || 0}/2
                 </button>
               ) : (
-                <span className="text-[11px] sm:text-xs font-mono font-black text-amber-500/80 bg-slate-950/60 border border-slate-850 px-2 py-1 rounded-lg flex-1 text-center">
+                <span className="text-[11px] sm:text-xs font-mono font-black text-amber-500/80 bg-slate-950/60 border border-slate-850 px-2 py-1 rounded-lg flex-1 flex items-center justify-center">
                   {timeouts?.home || 0}/2
                 </span>
               )}
-              <span className="text-slate-700 text-[9px] font-bold mx-0.5">|</span>
               {/* Away timeout btn */}
               {(role === ROLES.AWAY || role === ROLES.COACH) ? (
                 <button
                   onClick={() => onTimeout('away')}
                   disabled={timeouts?.away >= 2}
-                  className={`text-[11px] sm:text-xs font-mono font-black transition-all flex-1 text-center px-2 py-1 rounded-lg border active:scale-95 cursor-pointer shadow-md
+                  className={`text-[11px] sm:text-xs font-mono font-black transition-all flex-1 flex items-center justify-center px-2 py-1 rounded-lg border active:scale-95 cursor-pointer shadow-md
                     ${timeouts?.away >= 2 
                       ? 'bg-slate-950 border-slate-800 text-slate-600 opacity-40' 
                       : 'bg-amber-500 hover:bg-amber-400 border-amber-400 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.35)]'}`}
@@ -377,7 +376,7 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
                   {timeouts?.away || 0}/2
                 </button>
               ) : (
-                <span className="text-[11px] sm:text-xs font-mono font-black text-amber-500/80 bg-slate-950/60 border border-slate-850 px-2 py-1 rounded-lg flex-1 text-center">
+                <span className="text-[11px] sm:text-xs font-mono font-black text-amber-500/80 bg-slate-950/60 border border-slate-850 px-2 py-1 rounded-lg flex-1 flex items-center justify-center">
                   {timeouts?.away || 0}/2
                 </span>
               )}
