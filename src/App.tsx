@@ -4139,6 +4139,11 @@ function TrackerView({
                   <div className="flex items-center gap-2 truncate">
                     <span className={`w-1.5 h-4 shrink-0 rounded-full ${evt.team === 'home' ? 'bg-indigo-500' : 'bg-rose-500'}`}></span>
                     <span className="font-mono text-[9px] text-slate-400 shrink-0 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">{evt.scoreAt}</span>
+                    {evt.timestamp && (
+                      <span className="font-mono text-[8px] text-slate-500 shrink-0 bg-slate-900/40 px-1 py-0.5 rounded border border-slate-800/30 select-none">
+                        {new Date(evt.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
+                    )}
                     <span className="font-black text-slate-200 shrink-0 bg-slate-800 px-1.5 py-0.5 rounded shadow-inner text-[11px]">#{evt.player}</span>
                     <span className="text-slate-300 truncate">
                       {evt.skill === 'substitute' || evt.skill === 'timeout' || evt.skill === 'foul' ? (
