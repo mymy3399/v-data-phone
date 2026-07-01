@@ -1,3 +1,41 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --color-slate-50: 248 250 252;
+  --color-slate-100: 241 245 249;
+  --color-slate-200: 226 232 240;
+  --color-slate-300: 203 213 225;
+  --color-slate-400: 148 163 184;
+  --color-slate-500: 100 116 139;
+  --color-slate-600: 71 85 105;
+  --color-slate-700: 51 65 85;
+  --color-slate-800: 30 41 59;
+  --color-slate-850: 23 33 51;
+  --color-slate-900: 15 23 42;
+  --color-slate-950: 2 6 23;
+}
+
+.light {
+  --color-slate-50: 15 23 42;
+  --color-slate-100: 30 41 59;
+  --color-slate-200: 71 85 105;
+  --color-slate-300: 30 41 59;
+  --color-slate-400: 71 85 105;
+  --color-slate-500: 100 116 139;
+  --color-slate-600: 100 116 139;
+  --color-slate-700: 203 213 225;
+  --color-slate-800: 226 232 240;
+  --color-slate-850: 241 245 249;
+  --color-slate-900: 255 255 255;
+  --color-slate-950: 248 250 252;
+}
+
+/* Scrollbar tweaks in light mode */
+.light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(203 213 225);
+}
+.light .custom-scrollbar::-webkit-scrollbar-track {
+  background-color: rgb(241 245 249);
+}

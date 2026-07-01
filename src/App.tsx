@@ -7,7 +7,7 @@ import autoTable from 'jspdf-autotable';
 import { 
   ClipboardList, MonitorPlay, Check, X, Undo2, Settings, 
   Users, RotateCcw, AlertCircle, BarChart3, Swords, LogIn, Plus, Copy, CloudLightning, Download, BookOpen, ChevronRight, Link2, Trophy, PlayCircle, ChevronLeft,
-  Activity, Lock, Unlock, Trash2, Calendar, KeyRound, UserPlus, Sliders, LayoutGrid, List, MapPin
+  Activity, Lock, Unlock, Trash2, Calendar, KeyRound, UserPlus, Sliders, LayoutGrid, List, MapPin, Sun, Moon
 } from 'lucide-react';
 
 const LanguageContext = createContext<{ lang: 'th' | 'en'; setLang: (l: 'th' | 'en') => void }>({
@@ -4389,6 +4389,21 @@ export default function App() {
     const saved = localStorage.getItem('app_lang');
     return (saved === 'en' || saved === 'th') ? saved : 'th';
   });
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('app_theme');
+    return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('light');
+    } else {
+      root.classList.remove('light');
+    }
+    localStorage.setItem('app_theme', theme);
+  }, [theme]);
 
   const handleSetLang = (newLang: 'th' | 'en') => {
     setLang(newLang);

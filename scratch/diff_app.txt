@@ -1,0 +1,267 @@
+diff --git a/src/App.tsx b/src/App.tsx
+index ff70cdc..bd4578a 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -3043,7 +3043,8 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
+ 
+ function TrackerView({ 
+   role, score, teamNames, rotations, roster, tempRallyEvents, onSaveEvent, onCommitRally, onClearRally, onUndo, onFoul, onSubstitution, onManualRotate, hasEvents, timeouts, currentServe,
+-  status, onManualEndSet, onManualEndMatch, onResumeMatch, hideCourts = false
++  status, onManualEndSet, onManualEndMatch, onResumeMatch, hideCourts = false,
++  onLiberoQuickSwap, liberoSwaps
+ }) {
+   const { lang } = useContext(LanguageContext);
+   const t = (key) => (translations[lang] || {})[key] || (translations['th'] || {})[key] || key;
+@@ -3056,6 +3057,7 @@ function TrackerView({
+   const [step, setStep] = useState('select_start'); 
+   const [subModalOpen, setSubModalOpen] = useState(false);
+   const [foulModalOpen, setFoulModalOpen] = useState(false);
++  const [liberoSwapModalOpen, setLiberoSwapModalOpen] = useState(false);
+   const [isActionPanelOpen, setIsActionPanelOpen] = useState(true);
+   
+   const [isChainedScout, setIsChainedScout] = useState(false);
+@@ -3149,6 +3151,13 @@ function TrackerView({
+           >
+             {t('foulBtn')}
+           </button>
++          <button 
++            onClick={() => setLiberoSwapModalOpen(true)}
++            className="text-[9px] sm:text-[10px] bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 px-2 py-1.5 rounded-lg font-bold transition-all border border-indigo-800/40 active:scale-95 shrink-0 flex items-center gap-1"
++          >
++            <RotateCcw className="w-2.5 h-2.5" />
++            {lang === 'en' ? 'L-Swap' : 'สลับ L พิเศษ'}
++          </button>
+           <button 
+             onClick={() => {
+               const confirmText = t('confirmEndSet')
+@@ -3236,30 +3245,44 @@ function TrackerView({
+              <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mt-1 shrink min-h-0">
+                <div className="w-full h-full grid grid-cols-3 grid-rows-[1fr_2fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
+                  {COURT_ZONES.map(zone => {
+-                   const playerNum = getPlayerInZone(zone.id);
+-                   const playerDetails = (teamRoster as Record<string, any>)[playerNum] || { name: '-', position: '-' };
+-                   const isSelected = currentEvent.startZone === zone.id;
+-
+-                   return (
+-                     <button
+-                       key={`own-${zone.id}`}
+-                       onClick={() => handleZoneClick(zone.id, false)}
+-                       className={`border border-white/20 flex flex-col items-center justify-center transition-all relative group cursor-pointer hover:bg-white/10
+-                         ${isSelected ? 'bg-emerald-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : ''}
+-                       `}
+-                     >
+-                       <span className={`absolute top-0.5 left-1 text-[6px] sm:text-[8px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
+-                       {playerNum ? (
+-                         <div className="flex flex-col items-center justify-center">
+-                           <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
+-                           <span className="text-[5px] sm:text-[8px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
+-                         </div>
+-                       ) : (
+-                         <span className="text-[10px] sm:text-sm font-black text-white/10">{zone.label}</span>
+-                       )}
+-                     </button>
+-                   );
+-                 })}
++                    const playerNum = getPlayerInZone(zone.id);
++                    const playerDetails = (teamRoster as Record<string, any>)[playerNum] || { name: '-', position: '-' };
++                    const isSelected = currentEvent.startZone === zone.id;
++                    const isBackRow = [1, 6, 5].includes(zone.id);
++
++                    return (
++                      <div
++                        key={`own-${zone.id}`}
++                        onClick={() => handleZoneClick(zone.id, false)}
++                        className={`border border-white/20 flex flex-col items-center justify-center transition-all relative group cursor-pointer hover:bg-white/10
++                          ${isSelected ? 'bg-emerald-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : ''}
++                        `}
++                      >
++                        <span className={`absolute top-0.5 left-1 text-[6px] sm:text-[8px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
++                        {playerNum ? (
++                          <div className="flex flex-col items-center justify-center">
++                            <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
++                            <span className="text-[5px] sm:text-[8px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
++                          </div>
++                        ) : (
++                          <span className="text-[10px] sm:text-sm font-black text-white/10">{zone.label}</span>
++                        )}
++                        {/* Quick manual Libero swap for back row zones */}
++                        {isBackRow && playerNum && (
++                          <button
++                            onClick={(e) => {
++                              e.stopPropagation();
++                              if (onLiberoQuickSwap) onLiberoQuickSwap(zone.id);
++                            }}
++                            className="absolute bottom-1 right-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[7px] sm:text-[8.5px] px-1 py-0.5 rounded font-black border border-white/10 cursor-pointer shadow active:scale-90 select-none z-30 leading-none"
++                            title={lang === 'en' ? 'Quick Libero Swap' : 'สลับลิเบอโร่ด่วน'}
++                          >
++                            L ⇄
++                          </button>
++                        )}
++                      </div>
++                    );
++                  })}
+                  <div className="absolute top-[33.33%] left-0 w-full border-t border-white/40 pointer-events-none"></div>
+                </div>
+                <div className={`mt-0.5 font-extrabold text-[7.5px] sm:text-[9px] tracking-wider ${teamColor}`}>
+@@ -3498,6 +3521,74 @@ function TrackerView({
+           </div>
+         </div>
+       )}
++
++      {liberoSwapModalOpen && (
++        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3 backdrop-blur-sm">
++          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-2xl">
++            <h3 className="text-sm font-black text-indigo-400 mb-3 border-b border-slate-800 pb-2 flex items-center gap-2">
++              <RotateCcw className="w-4 h-4" /> {lang === 'en' ? 'Special Libero Swap' : 'สลับ L แดนหลังพิเศษ'}
++            </h3>
++            
++            <p className="text-[10px] text-slate-400 mb-3 leading-relaxed">
++              {lang === 'en' 
++                ? 'Swap Libero (L) with any position in the backcourt (R1, R6, R5).' 
++                : 'ใช้สลับตัวผู้เล่นลิเบอโร่ (L) กับผู้เล่นตำแหน่งอื่นในแดนหลัง (R1, R6, R5) นอกเหนือจาก MB'}
++            </p>
++
++            <div className="flex flex-col gap-3">
++              {[1, 6, 5].map(zoneId => {
++                const playerNum = getPlayerInZone(zoneId);
++                const playerDetails = (teamRoster as Record<string, any>)[playerNum] || { name: '-', position: '-' };
++                const isLibero = playerDetails.position === 'L';
++                const originalPlayerNum = liberoSwaps?.[role]?.[zoneId];
++                
++                return (
++                  <div key={`libero-swap-zone-${zoneId}`} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
++                    <div>
++                      <div className="text-[9px] text-amber-500 font-bold uppercase">Zone R{zoneId}</div>
++                      <div className="text-sm font-black text-white mt-0.5">
++                        #{playerNum} <span className="text-[10px] font-bold text-slate-400">({playerDetails.position})</span>
++                      </div>
++                      {isLibero && originalPlayerNum && (
++                        <div className="text-[8.5px] text-slate-500 mt-0.5 font-bold">
++                          {lang === 'en' ? `Original: #${originalPlayerNum}` : `ผู้เล่นเดิม: #${originalPlayerNum}`}
++                        </div>
++                      )}
++                    </div>
++                    
++                    <button
++                      onClick={() => {
++                        if (onLiberoQuickSwap) onLiberoQuickSwap(zoneId);
++                        setLiberoSwapModalOpen(false);
++                      }}
++                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black shadow transition-all active:scale-95
++                        ${isLibero 
++                          ? 'bg-rose-600 hover:bg-rose-500 text-white' 
++                          : 'bg-indigo-600 hover:bg-indigo-500 text-white'
++                        }
++                      `}
++                    >
++                      {isLibero 
++                        ? (lang === 'en' ? 'Swap Out' : 'สลับออก') 
++                        : (lang === 'en' ? 'Swap L In' : 'สลับ L เข้าแทน')
++                      }
++                    </button>
++                  </div>
++                );
++              })}
++            </div>
++
++            <div className="flex justify-end mt-4 pt-3 border-t border-slate-800">
++              <button 
++                onClick={() => setLiberoSwapModalOpen(false)}
++                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs shadow transition-colors"
++              >
++                {t('cancelBtn')}
++              </button>
++            </div>
++          </div>
++        </div>
++      )}
+     </div>
+   );
+ }function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false, currentServe = null }) {
+@@ -4362,32 +4453,33 @@ export default function App() {
+         }
+       });
+ 
+-      // 2. Receiving team: swap Libero in for any MB in back row
+-      if (!isServing) {
+-        [0, 5, 4].forEach(idx => {
+-          const currentPlayer = teamRot[idx];
+-          const isLiberoOnCourt = teamRot.includes(liberoNum);
+-          if (mbs.includes(currentPlayer) && !isLiberoOnCourt) {
+-            const zoneId = idx + 1;
+-            updatedSwaps[team][zoneId] = currentPlayer;
+-            teamRot[idx] = liberoNum;
+-            changed = true;
+-
+-            updatedEvents.push({
+-              id: `auto-swap-in-${Date.now()}-${team}-${zoneId}`,
+-              timestamp: Date.now(),
+-              scoreAt: `[${state.score?.home || 0}-${state.score?.away || 0}]`,
+-              team: team,
+-              player: currentPlayer,
+-              skill: "libero_swap",
+-              eval: "#",
+-              startZone: zoneId,
+-              endZone: null,
+-              detail: lang === 'en' ? `Auto: Libero in for #${currentPlayer}` : `อัตโนมัติ: ลิเบอโร่ลงแทน #${currentPlayer}`
+-            });
+-          }
+-        });
+-      }
++      // 2. Swap Libero in for any MB in the back row (zones R1, R6, R5 -> indices 0, 5, 4)
++      // If serving, Libero cannot be in R1 (index 0) because Libero cannot serve.
++      // So if serving, only check R6 and R5 (indices 5, 4). If receiving, check all R1, R6, R5 (indices 0, 5, 4).
++      const backRowIndices = isServing ? [5, 4] : [0, 5, 4];
++      backRowIndices.forEach(idx => {
++        const currentPlayer = teamRot[idx];
++        const isLiberoOnCourt = teamRot.includes(liberoNum);
++        if (mbs.includes(currentPlayer) && !isLiberoOnCourt) {
++          const zoneId = idx + 1;
++          updatedSwaps[team][zoneId] = currentPlayer;
++          teamRot[idx] = liberoNum;
++          changed = true;
++
++          updatedEvents.push({
++            id: `auto-swap-in-${Date.now()}-${team}-${zoneId}`,
++            timestamp: Date.now(),
++            scoreAt: `[${state.score?.home || 0}-${state.score?.away || 0}]`,
++            team: team,
++            player: currentPlayer,
++            skill: "libero_swap",
++            eval: "#",
++            startZone: zoneId,
++            endZone: null,
++            detail: lang === 'en' ? `Auto: Libero in for #${currentPlayer}` : `อัตโนมัติ: ลิเบอโร่ลงแทน #${currentPlayer}`
++          });
++        }
++      });
+       
+       // 3. Serving team: Libero cannot serve, swap out back to original MB in zone R1
+       if (isServing && teamRot[0] === liberoNum) {
+@@ -4666,7 +4758,16 @@ export default function App() {
+     };
+ 
+     // Check if evaluation ends the rally (point-winning/losing evaluation)
+-    const isRallyEnd = eventData.eval === '#' || eventData.eval === '=' || eventData.eval === '/';
++    // สำหรับ '#' (ดีเยี่ยม) และ '=' (เสีย) จะจบแรลลี่เฉพาะทักษะ 'attack' (ตบ), 'serve' (เสิร์ฟ), และ 'block' (บล็อก) เท่านั้น
++    // ทักษะอื่นๆ (receive, set, dig) จะยังไม่จบแรลลี่และยังไม่เป็นแต้ม เพื่อให้สามารถคีย์ต่อไปได้
++    let isRallyEnd = false;
++    if (eventData.eval === '#') {
++      isRallyEnd = ['attack', 'serve', 'block'].includes(eventData.skill);
++    } else if (eventData.eval === '=') {
++      isRallyEnd = ['attack', 'serve', 'block'].includes(eventData.skill);
++    } else if (eventData.eval === '/') {
++      isRallyEnd = true;
++    }
+ 
+     if (isRallyEnd) {
+       const winningTeam = eventData.eval === '#' 
+@@ -5835,6 +5936,8 @@ export default function App() {
+                     onFoul={(fType) => handleFoul(role, fType)}
+                     onSubstitution={(target, sub) => handleSubstitution(role, target, sub)}
+                     onManualRotate={() => rotateTeamClockwise(role)}
++                    onLiberoQuickSwap={(zoneId) => handleLiberoQuickSwap(role, zoneId)}
++                    liberoSwaps={matchData.liberoSwaps || { home: {}, away: {} }}
+                     hasEvents={matchData.events.filter(e => e.team === role).length > 0}
+                  />
+               </div>
