@@ -3467,8 +3467,9 @@ function TrackerView({
   );
 }function Dashboard({ events, rotations, roster, role, teamNames, timeouts, currentSet = 1, setScores = [], hideTabs = false, currentServe = null }) {
   const { lang } = useContext(LanguageContext);
-  const [activeTab, setActiveTab] = useState<'summary' | 'heatmap' | 'rotation' | 'logs'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'players' | 'heatmap' | 'rotation' | 'logs'>('summary');
   const [selectedSet, setSelectedSet] = useState<number | 'all'>('all');
+  const [selectedPlayerTeam, setSelectedPlayerTeam] = useState<'home' | 'away'>('home');
 
   const t = (key: string, params?: Record<string, string | number>) => {
     let val = (translations[lang] as any)[key] || (translations['th'] as any)[key] || key;
@@ -3573,6 +3574,62 @@ function TrackerView({
   const homeStats = useMemo(() => calculateStats(ROLES.HOME), [filteredEvents]);
   const awayStats = useMemo(() => calculateStats(ROLES.AWAY), [filteredEvents]);
 
+  const playerStats = useMemo(() => {
+    const calculatePlayerStatsForTeam = (teamKey: 'home' | 'away') => {
+      const teamRoster = roster[teamKey] || {};
+      const teamEvents = filteredEvents.filter(e => e.team === teamKey);
+      
+      return Object.entries(teamRoster).map(([num, details]: [string, any]) => {
+        const pEvents = teamEvents.filter(e => e.player === num);
+        
+        const skillCounts: Record<string, { total: number; perfect: number; good: number; okay: number; poor: number; error: number; blocked: number }> = {};
+        SKILLS.forEach(s => {
+          const sEvts = pEvents.filter(e => e.skill === s.id);
+          skillCounts[s.id] = {
+            total: sEvts.length,
+            perfect: sEvts.filter(e => e.eval === '#').length,
+            good: sEvts.filter(e => e.eval === '+').length,
+            okay: sEvts.filter(e => e.eval === '!').length,
+            poor: sEvts.filter(e => e.eval === '-').length,
+            error: sEvts.filter(e => e.eval === '=').length,
+            blocked: sEvts.filter(e => e.eval === '/').length,
+          };
+        });
+
+        const totalActions = pEvents.length;
+        const successCount = pEvents.filter(e => e.eval === '#' || e.eval === '+').length;
+        const errorCount = pEvents.filter(e => e.eval === '=' || e.eval === '/').length;
+        
+        const successRate = totalActions > 0 ? ((successCount / totalActions) * 100).toFixed(0) : '0';
+        const errorRate = totalActions > 0 ? ((errorCount / totalActions) * 100).toFixed(0) : '0';
+
+        return {
+          num,
+          name: details.name,
+          position: details.position,
+          isStarter: details.isStarter,
+          totalActions,
+          successCount,
+          errorCount,
+          successRate,
+          errorRate,
+          skills: skillCounts
+        };
+      }).sort((a, b) => {
+        if (a.isStarter && !b.isStarter) return -1;
+        if (!a.isStarter && b.isStarter) return 1;
+        const aNum = parseInt(a.num) || 0;
+        const bNum = parseInt(b.num) || 0;
+        return aNum - bNum;
+      });
+    };
+
+    return {
+      home: calculatePlayerStatsForTeam('home'),
+      away: calculatePlayerStatsForTeam('away')
+    };
+  }, [filteredEvents, roster]);
+
   const zoneDistribution = useMemo(() => {
     const data = {
       home: { strengths: Array(7).fill(0), weaknesses: Array(7).fill(0) },
@@ -3603,19 +3660,27 @@ function TrackerView({
   return (
     <div className="flex flex-col gap-2 h-full overflow-hidden min-h-0">
       {/* Tab Switchers */}
-      <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shrink-0 gap-1.5 shadow-sm">
+      <div className="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 shrink-0 gap-1.5 shadow-sm overflow-x-auto scrollbar-none">
         <button
           onClick={() => setActiveTab('summary')}
-          className={`flex-1 py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider
+          className={`flex-1 min-w-[80px] py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider shrink-0
             ${activeTab === 'summary' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
           `}
         >
           <BarChart3 className="w-4 h-4 text-indigo-300" /> {t('qualityTab')}
         </button>
+        <button
+          onClick={() => setActiveTab('players')}
+          className={`flex-1 min-w-[80px] py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider shrink-0
+            ${activeTab === 'players' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
+          `}
+        >
+          <Users className="w-4 h-4 text-sky-400" /> {lang === 'en' ? 'Players' : 'วิเคราะห์ผู้เล่น'}
+        </button>
         {!hideTabs && (
           <button
             onClick={() => setActiveTab('heatmap')}
-            className={`flex-1 py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider
+            className={`flex-1 min-w-[80px] py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider shrink-0
               ${activeTab === 'heatmap' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
             `}
           >
@@ -3625,7 +3690,7 @@ function TrackerView({
         {!hideTabs && (
           <button
             onClick={() => setActiveTab('rotation')}
-            className={`flex-1 py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider
+            className={`flex-1 min-w-[80px] py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider shrink-0
               ${activeTab === 'rotation' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
             `}
           >
@@ -3634,7 +3699,7 @@ function TrackerView({
         )}
         <button
           onClick={() => setActiveTab('logs')}
-          className={`flex-1 py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider
+          className={`flex-1 min-w-[80px] py-2.5 sm:py-3 text-xs md:text-sm font-extrabold rounded-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wider shrink-0
             ${activeTab === 'logs' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
           `}
         >
@@ -3735,6 +3800,149 @@ function TrackerView({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* PLAYERS STATS VIEW */}
+      {activeTab === 'players' && (
+        <div className="flex-1 flex flex-col gap-2.5 overflow-hidden min-h-0">
+          {/* Team Switcher for Player Stats */}
+          <div className="flex gap-2 shrink-0 bg-slate-950 p-1.5 rounded-xl border border-slate-800 shadow-inner">
+            {showHome && (
+              <button
+                onClick={() => setSelectedPlayerTeam('home')}
+                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all border
+                  ${selectedPlayerTeam === 'home' 
+                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm font-extrabold' 
+                    : 'bg-slate-900 border-slate-800 text-indigo-400 hover:bg-slate-800 hover:text-indigo-200'}
+                `}
+              >
+                {teamNames.home} ({lang === 'en' ? 'HOME' : 'ทีมเหย้า'})
+              </button>
+            )}
+            {showAway && (
+              <button
+                onClick={() => setSelectedPlayerTeam('away')}
+                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all border
+                  ${selectedPlayerTeam === 'away' 
+                    ? 'bg-rose-600 border-rose-500 text-white shadow-sm font-extrabold' 
+                    : 'bg-slate-900 border-slate-800 text-rose-400 hover:bg-slate-800 hover:text-rose-200'}
+                `}
+              >
+                {teamNames.away} ({lang === 'en' ? 'AWAY' : 'ทีมเยือน'})
+              </button>
+            )}
+          </div>
+
+          {/* Table Container */}
+          <div className="bg-slate-900 rounded-xl border border-slate-700 flex-1 min-h-0 flex flex-col overflow-hidden shadow-md">
+            <h3 className={`text-[11px] sm:text-[12px] font-black px-3 py-2 border-b border-slate-800 flex items-center justify-between shrink-0 uppercase tracking-wider
+              ${selectedPlayerTeam === 'home' ? 'text-indigo-400' : 'text-rose-400'}
+            `}>
+              <span>{t('playerStatsTitle')} - {selectedPlayerTeam === 'home' ? teamNames.home : teamNames.away}</span>
+              <span className="text-[10px] text-slate-500 lowercase">({lang === 'en' ? 'sorted by starter status' : 'เรียงตามผู้เล่นตัวจริง'})</span>
+            </h3>
+
+            <div className="flex-1 overflow-auto custom-scrollbar p-1">
+              <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 font-extrabold text-[10px] uppercase bg-slate-950/40">
+                    <th className="py-2.5 px-3 w-10 text-center">{t('playerNo')}</th>
+                    <th className="py-2.5 px-3 min-w-[100px]">{t('playerName')}</th>
+                    <th className="py-2.5 px-2 w-12 text-center">{t('playerPos')}</th>
+                    <th className="py-2.5 px-2 w-16 text-center">{t('totalActions')}</th>
+                    <th className="py-2.5 px-2 w-28 text-center">{lang === 'en' ? 'Performance Ratio' : 'อัตราส่วนผลงาน'}</th>
+                    {SKILLS.map(s => (
+                      <th key={s.id} className="py-2.5 px-1.5 text-center w-24">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-black text-white ${s.colorActive.split(' ')[0]}`}>
+                          {s.label.split(' ')[0]}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40">
+                  {playerStats[selectedPlayerTeam].map(p => {
+                    const hasData = p.totalActions > 0;
+                    return (
+                      <tr key={p.num} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-3 text-center">
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full font-black text-[11px] border
+                            ${p.isStarter 
+                              ? 'bg-indigo-950 text-indigo-400 border-indigo-500/50 shadow-[0_0_6px_rgba(99,102,241,0.2)]' 
+                              : 'bg-slate-950 text-slate-500 border-slate-850'
+                            }
+                          `}>
+                            {p.num}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-bold text-slate-200">
+                          <div className="flex flex-col">
+                            <span className="truncate max-w-[120px]">{p.name || '-'}</span>
+                            <span className="text-[9px] text-slate-500 font-bold lowercase">
+                              {p.isStarter ? (lang === 'en' ? 'starter' : 'ตัวจริง') : (lang === 'en' ? 'sub' : 'สำรอง')}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <span className="font-extrabold text-[9px] px-1.5 py-0.5 bg-slate-950 border border-slate-800/80 rounded text-amber-400 uppercase">
+                            {p.position || '-'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-center font-bold text-slate-300 font-mono">
+                          {p.totalActions}
+                        </td>
+                        <td className="py-3 px-2">
+                          {hasData ? (
+                            <div className="flex flex-col gap-1 px-1">
+                              <div className="flex justify-between text-[9px] font-mono leading-none">
+                                <span className="text-emerald-400 font-extrabold">+{p.successRate}%</span>
+                                <span className="text-rose-400 font-extrabold">-{p.errorRate}%</span>
+                              </div>
+                              <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden flex border border-slate-800/50 shrink-0">
+                                <div style={{ width: `${p.successRate}%` }} className="bg-emerald-500 h-full transition-all" />
+                                <div style={{ width: `${100 - parseFloat(p.successRate) - parseFloat(p.errorRate)}%` }} className="bg-slate-700 h-full" />
+                                <div style={{ width: `${p.errorRate}%` }} className="bg-rose-500 h-full" />
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-600 text-[10px] block text-center italic">-</span>
+                          )}
+                        </td>
+                        {SKILLS.map(s => {
+                          const sStats = p.skills[s.id];
+                          const sTotal = sStats?.total || 0;
+                          
+                          if (sTotal === 0) {
+                            return (
+                              <td key={s.id} className="py-3 px-1.5 text-center text-slate-600 font-mono text-[10px] italic">
+                                -
+                              </td>
+                            );
+                          }
+                          
+                          const pos = sStats.perfect + sStats.good;
+                          const neg = sStats.error + sStats.blocked;
+                          
+                          return (
+                            <td key={s.id} className="py-3 px-1.5 text-center">
+                              <div className="flex flex-col items-center">
+                                <span className="font-black text-slate-300 font-mono text-[10px]">{sTotal}</span>
+                                <div className="flex gap-0.5 text-[8px] font-mono mt-0.5">
+                                  {pos > 0 && <span className="text-emerald-400 font-bold bg-emerald-950/40 px-0.5 rounded leading-none">+{pos}</span>}
+                                  {neg > 0 && <span className="text-rose-400 font-bold bg-rose-950/40 px-0.5 rounded leading-none">-{neg}</span>}
+                                </div>
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
