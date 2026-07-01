@@ -3085,8 +3085,18 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
 function TrackerView({ 
   role, score, teamNames, rotations, roster, tempRallyEvents, onSaveEvent, onCommitRally, onClearRally, onUndo, onFoul, onSubstitution, onManualRotate, hasEvents, timeouts, currentServe,
   status, onManualEndSet, onManualEndMatch, onResumeMatch, hideCourts = false,
-  autoLiberoSwapEnabled, setAutoLiberoSwapEnabled
-}) {
+  autoLiberoSwapEnabled, setAutoLiberoSwapEnabled,
+  isPortrait = false,
+  setsWon = { home: 0, away: 0 },
+  events = [],
+  currentSet = 1,
+  setScores = [],
+  hideTabs = false,
+  onUpdateScore = () => {},
+  onTimeout = () => {},
+  onUpdateServe = () => {},
+  onReduceTimeout = () => {}
+}: any) {
   const { lang } = useContext(LanguageContext);
   const t = (key) => (translations[lang] || {})[key] || (translations['th'] || {})[key] || key;
 
@@ -3201,6 +3211,178 @@ function TrackerView({
     { id: 'otherFault', label: t('otherFault') }
   ];
 
+  const renderCourt = () => {
+    return (
+      <>
+        {/* Opponent Court */}
+        <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mb-1 shrink min-h-0">
+          <div className="text-rose-400 font-extrabold text-[7.5px] sm:text-[9px] mb-0.5 tracking-wider uppercase">
+            {t('opponentCourtLabel')} {currentServe !== null && (currentServe === (role === 'home' ? 'away' : 'home') ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
+          </div>
+          <div className="w-full h-full grid grid-cols-3 grid-rows-[2fr_1fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
+            {OPP_COURT_ZONES.map(zone => {
+              const oppIsFrontRow = [2, 3, 4].includes(zone.id);
+              const isOppSelected = currentEvent.endZone === zone.id;
+              return (
+                <button
+                  key={`opp-${zone.id}`}
+                  onClick={() => handleZoneClick(zone.id, true)}
+                  style={{ backgroundColor: isOppSelected ? undefined : oppIsFrontRow ? 'rgba(60,20,0,0.38)' : 'rgba(255,220,180,0.10)' }}
+                  className={`border border-white/20 flex items-center justify-center text-xs sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
+                    ${isOppSelected ? 'bg-rose-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : 'text-white/20'}
+                  `}
+                >
+                  {zone.label}
+                </button>
+              );
+            })}
+            <div className="absolute bottom-[33.33%] left-0 w-full border-b border-white/40 pointer-events-none"></div>
+          </div>
+        </div>
+
+        {/* Net line */}
+        <div className="w-full max-w-[240px] h-1 sm:h-1.5 bg-slate-300 z-20 shadow-[0_0_5px_rgba(255,255,255,0.5)] my-0.5 sm:my-1 relative rounded-full shrink">
+           <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-slate-900 px-1.5 py-0.5 rounded-full text-[5px] sm:text-[6px] text-white font-extrabold tracking-widest leading-none border border-slate-700">NET</div>
+           </div>
+        </div>
+
+        {/* Own Court */}
+        <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mt-1 shrink min-h-0">
+          <div className="w-full h-full grid grid-cols-3 grid-rows-[1fr_2fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
+            {COURT_ZONES.map(zone => {
+              const playerNum = getPlayerInZone(zone.id);
+              const playerDetails = (teamRoster as Record<string, any>)[playerNum] || { name: '-', position: '-' };
+              const isSelected = currentEvent.startZone === zone.id;
+
+              return (
+                <button
+                  key={`own-${zone.id}`}
+                  onClick={() => handleZoneClick(zone.id, false)}
+                  style={{ backgroundColor: isSelected ? undefined : [2, 3, 4].includes(zone.id) ? 'rgba(60,20,0,0.38)' : 'rgba(255,220,180,0.10)' }}
+                  className={`border border-white/20 flex flex-col items-center justify-center transition-all relative group cursor-pointer hover:bg-white/10
+                    ${isSelected ? 'bg-emerald-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : ''}
+                  `}
+                >
+                  <span className={`absolute top-0.5 left-1 text-[6px] sm:text-[8px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
+                  {playerNum ? (
+                    <div className="flex flex-col items-center justify-center w-full px-1">
+                       <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
+                       <span className="text-[5px] sm:text-[8.5px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
+                       {playerDetails.name && playerDetails.name !== '-' && (
+                         <span className={`text-[6.5px] sm:text-[9.5px] font-black truncate w-full text-center mt-0.5 tracking-wide leading-none ${isSelected ? 'text-indigo-100 font-extrabold' : 'text-slate-350'}`}>
+                           {playerDetails.name.split(' ')[0].slice(0, 8)}
+                         </span>
+                       )}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] sm:text-sm font-black text-white/10">{zone.label}</span>
+                  )}
+                </button>
+              );
+            })}
+            <div className="absolute top-[33.33%] left-0 w-full border-t border-white/40 pointer-events-none"></div>
+          </div>
+          <div className={`mt-0.5 font-extrabold text-[7.5px] sm:text-[9px] tracking-wider ${teamColor}`}>
+            {t('ownCourtLabel')} {currentServe !== null && (currentServe === role ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
+          </div>
+        </div>
+      </>
+    );
+  };
+
+  const renderActionPanel = () => {
+    return (
+      <>
+        {/* Header title inside panel */}
+        <div className="flex items-center justify-between border-b border-slate-800 pb-1 sm:pb-2 mb-1.5 sm:mb-3">
+          <span className="text-[9px] sm:text-[10px] font-black text-amber-400 uppercase tracking-widest">{t('statEntryPanelTitle')}</span>
+        </div>
+
+        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar gap-1.5 sm:gap-3 text-[9px] sm:text-[10px] pr-0.5">
+          {/* Step 1: Player selection mapped to court rotation */}
+          <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800">
+            <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 font-black uppercase tracking-wider flex justify-between items-center">
+              <span>{t('step1Player')}</span>
+              <span className="text-slate-500 text-[6px] bg-slate-900 px-1 rounded border border-slate-800">SYNCED</span>
+            </label>
+            
+            {/* Grid 3x2 corresponding to actual court rotation positions */}
+            <div className="grid grid-cols-3 gap-1 sm:gap-1.5">
+              {[3, 2, 1, 4, 5, 0].map(idx => {
+                const num = players[idx];
+                const zoneNum = idx + 1;
+                const details = (teamRoster as Record<string, any>)[num] || { name: '-', position: '-' };
+                const shortName = details.name && details.name !== '-' ? details.name.split(' ')[0].slice(0, 7) : null;
+                return (
+                  <button
+                    key={`p-panel-${zoneNum}-${num}`}
+                    onClick={() => setCurrentEvent(prev => ({ ...prev, player: num, startZone: zoneNum }))}
+                    className={`py-1.5 sm:py-2.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
+                      ${currentEvent.player === num ? 'bg-amber-500 border-amber-400 text-slate-900 ring-2 ring-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}
+                    `}
+                  >
+                    <span className="absolute top-0.5 left-1 text-[6.5px] sm:text-[8px] font-black opacity-45">R{zoneNum}</span>
+                    <span className="font-black text-sm sm:text-base md:text-lg leading-none mt-1 sm:mt-1.5">{num}</span>
+                    {shortName && <span className="text-[6px] sm:text-[8px] opacity-90 mt-0.5 font-bold truncate max-w-full px-0.5">{shortName}</span>}
+                    <span className="text-[5.5px] sm:text-[7.5px] opacity-70 uppercase font-bold">({details.position})</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Step 2: Skills */}
+          <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800">
+            <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
+              {t('step2Skill')}
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5">
+              {SKILLS.map(skill => (
+                <button
+                  key={skill.id}
+                  onClick={() => setCurrentEvent(prev => ({ ...prev, skill: skill.id }))}
+                  className={`py-2.5 sm:py-4 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[10px] sm:text-[11px] md:text-[12.5px]
+                    ${currentEvent.skill === skill.id ? (skill.colorActive + ' ring-2 ring-white shadow-lg') : (skill.color + ' opacity-80 hover:opacity-100')}
+                  `}
+                >
+                  <span className="hidden sm:inline">{getLocalizedSkillLabel(skill.id, lang)}</span>
+                  <span className="sm:hidden">{getLocalizedSkillLabel(skill.id, lang).split(' ')[0]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Step 3: Evaluations */}
+          <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800 flex-1 flex flex-col">
+            <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
+              {t('step3Eval')}
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5 flex-1">
+              {EVALUATIONS.map(evalObj => (
+                <button
+                  key={evalObj.id}
+                  onClick={() => {
+                    if (currentEvent.player && currentEvent.skill) {
+                      handleEvalClick(evalObj.id);
+                    }
+                  }}
+                  disabled={!currentEvent.player || !currentEvent.skill}
+                  className={`py-2.5 sm:py-3.5 rounded-lg font-black text-white transition-all active:scale-95 leading-none shadow-md disabled:opacity-20 disabled:scale-100 flex items-center justify-center text-[10px] sm:text-[11.5px] md:text-[13px]
+                    ${currentEvent.eval === evalObj.id ? evalObj.color + ' ring-2 ring-white scale-105 shadow-xl' : evalObj.color + ' opacity-90 hover:opacity-100 border border-black/20'}
+                  `}
+                >
+                  <span className="hidden sm:inline">{getLocalizedEvalLabel(evalObj.id, lang)}</span>
+                  <span className="sm:hidden text-xs">{evalObj.id}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-900 overflow-hidden min-h-0 w-full">
 
@@ -3271,209 +3453,115 @@ function TrackerView({
         </div>
       </div>
 
+      {isPortrait ? (
+        /* Portrait layout: 2 Columns */
+        <div className="flex-1 flex flex-row overflow-hidden relative min-h-0 w-full gap-2 p-1 sm:p-2">
+          {status === 'finished' && (
+            <div className="absolute inset-0 bg-slate-950/85 z-40 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-200">
+              <Trophy className="w-12 h-12 text-amber-400 mb-2 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]" />
+              <h3 className="text-sm font-black text-white mb-0.5">{t('matchHasEnded')}</h3>
+              <p className="text-[10px] text-slate-400 mb-3 max-w-xs">{t('roomFinishedStatus')}</p>
+              <button 
+                onClick={onResumeMatch}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg border border-indigo-500 shadow-md active:scale-95 transition-all"
+              >
+                {t('resumeMatchBtn')}
+              </button>
+            </div>
+          )}
+          
+          {/* Column 1: ScoreBoard + Mock Court + Dashboard */}
+          <div className="flex-1 flex flex-col gap-2 h-full min-h-0 overflow-y-auto custom-scrollbar">
+            {/* ScoreBoard */}
+            <ScoreBoard 
+              score={score} 
+              setsWon={setsWon}
+              role={role} 
+              teamNames={teamNames}
+              timeouts={timeouts}
+              currentServe={currentServe}
+              onUpdateScore={onUpdateScore} 
+              onTimeout={onTimeout}
+              onUpdateServe={onUpdateServe}
+              onReduceTimeout={onReduceTimeout}
+              events={events}
+            />
 
-
-      {/* Main Interactive Screen layout: Left is Court, Right is Action Panel */}
-      <div className="flex-1 flex flex-row overflow-hidden relative min-h-0 w-full gap-1.5 p-1 sm:p-2">
-        {status === 'finished' && (
-          <div className="absolute inset-0 bg-slate-950/85 z-40 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-200">
-            <Trophy className="w-12 h-12 text-amber-400 mb-2 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]" />
-            <h3 className="text-sm font-black text-white mb-0.5">{t('matchHasEnded')}</h3>
-            <p className="text-[10px] text-slate-400 mb-3 max-w-xs">{t('roomFinishedStatus')}</p>
-            <button 
-              onClick={onResumeMatch}
-              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg border border-indigo-500 shadow-md active:scale-95 transition-all"
-            >
-              {t('resumeMatchBtn')}
-            </button>
-          </div>
-        )}
-        
-        {/* LEFT: Compact courts wrapper */}
-        {!hideCourts && (
-          <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/40 rounded-xl border border-slate-800/60 p-1 sm:p-2 min-h-0 overflow-hidden">
-             {/* Opponent Court */}
-             <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mb-1 shrink min-h-0">
-               <div className="text-rose-400 font-extrabold text-[7.5px] sm:text-[9px] mb-0.5 tracking-wider uppercase">
-                 {t('opponentCourtLabel')} {currentServe !== null && (currentServe === (role === 'home' ? 'away' : 'home') ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
+            {/* Mock Court */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-2 flex flex-col items-center justify-center shrink-0 min-h-0">
+               <div className="w-full flex-1 flex flex-col items-center justify-center bg-slate-950/40 rounded-xl border border-slate-800/60 p-1 sm:p-2 min-h-0 overflow-hidden">
+                  {renderCourt()}
                </div>
-               <div className="w-full h-full grid grid-cols-3 grid-rows-[2fr_1fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
-                 {OPP_COURT_ZONES.map(zone => {
-                   const oppIsFrontRow = [2, 3, 4].includes(zone.id);
-                   const isOppSelected = currentEvent.endZone === zone.id;
-                   return (
-                     <button
-                       key={`opp-${zone.id}`}
-                       onClick={() => handleZoneClick(zone.id, true)}
-                       style={{ backgroundColor: isOppSelected ? undefined : oppIsFrontRow ? 'rgba(60,20,0,0.38)' : 'rgba(255,220,180,0.10)' }}
-                       className={`border border-white/20 flex items-center justify-center text-xs sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
-                         ${isOppSelected ? 'bg-rose-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : 'text-white/20'}
-                       `}
-                     >
-                       {zone.label}
-                     </button>
-                   );
-                 })}
-                 <div className="absolute bottom-[33.33%] left-0 w-full border-b border-white/40 pointer-events-none"></div>
-               </div>
-             </div>
-
-             {/* Net line */}
-             <div className="w-full max-w-[240px] h-1 sm:h-1.5 bg-slate-300 z-20 shadow-[0_0_5px_rgba(255,255,255,0.5)] my-0.5 sm:my-1 relative rounded-full shrink">
-                <div className="absolute inset-0 flex items-center justify-center">
-                   <div className="bg-slate-900 px-1.5 py-0.5 rounded-full text-[5px] sm:text-[6px] text-white font-extrabold tracking-widest leading-none border border-slate-700">NET</div>
-                </div>
-             </div>
-
-             {/* Own Court */}
-             <div className="flex flex-col items-center relative w-full max-w-[280px] sm:max-w-[320px] max-h-[36vh] aspect-[4/3] mt-1 shrink min-h-0">
-               <div className="w-full h-full grid grid-cols-3 grid-rows-[1fr_2fr] border-2 border-slate-300/80 synthetic-court relative z-10 shadow-lg rounded">
-                 {COURT_ZONES.map(zone => {
-                   const playerNum = getPlayerInZone(zone.id);
-                   const playerDetails = (teamRoster as Record<string, any>)[playerNum] || { name: '-', position: '-' };
-                   const isSelected = currentEvent.startZone === zone.id;
-
-                   return (
-                     <button
-                       key={`own-${zone.id}`}
-                       onClick={() => handleZoneClick(zone.id, false)}
-                       style={{ backgroundColor: isSelected ? undefined : [2, 3, 4].includes(zone.id) ? 'rgba(60,20,0,0.38)' : 'rgba(255,220,180,0.10)' }}
-                       className={`border border-white/20 flex flex-col items-center justify-center transition-all relative group cursor-pointer hover:bg-white/10
-                         ${isSelected ? 'bg-emerald-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : ''}
-                       `}
-                     >
-                       <span className={`absolute top-0.5 left-1 text-[6px] sm:text-[8px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
-                       {playerNum ? (
-                         <div className="flex flex-col items-center justify-center w-full px-1">
-                            <span className={`text-base sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
-                            <span className="text-[5px] sm:text-[8.5px] px-1 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
-                            {playerDetails.name && playerDetails.name !== '-' && (
-                              <span className={`text-[6.5px] sm:text-[9.5px] font-black truncate w-full text-center mt-0.5 tracking-wide leading-none ${isSelected ? 'text-indigo-100 font-extrabold' : 'text-slate-350'}`}>
-                                {playerDetails.name.split(' ')[0].slice(0, 8)}
-                              </span>
-                            )}
-                          </div>
-                       ) : (
-                         <span className="text-[10px] sm:text-sm font-black text-white/10">{zone.label}</span>
-                       )}
-                     </button>
-                   );
-                 })}
-                 <div className="absolute top-[33.33%] left-0 w-full border-t border-white/40 pointer-events-none"></div>
-               </div>
-               <div className={`mt-0.5 font-extrabold text-[7.5px] sm:text-[9px] tracking-wider ${teamColor}`}>
-                 {t('ownCourtLabel')} {currentServe !== null && (currentServe === role ? (lang === 'en' ? ' - SERVING' : ' - เสิร์ฟ') : (lang === 'en' ? ' - RECEIVING' : ' - รับเสิร์ฟ'))}
-               </div>
-             </div>
-          </div>
-        )}
-
-        {/* RIGHT: Splitter handle + Action Keying Panel */}
-
-        {/* Splitter handle on left edge of right panel */}
-        {!hideCourts && (
-          <div
-            className="hidden md:flex w-2.5 hover:w-3 bg-slate-900 border-x border-slate-800 hover:bg-indigo-600 hover:border-indigo-500 cursor-col-resize self-stretch transition-all duration-150 relative items-center justify-center shrink-0 group select-none z-40"
-            onMouseDown={handleRightMouseDown}
-            onTouchStart={handleRightTouchStart}
-          >
-            <div className="w-1 h-8 rounded-full bg-slate-700 group-hover:bg-indigo-300 transition-colors" />
-          </div>
-        )}
-
-        {/* RIGHT: Action Keying Panel placed directly on the right side of courts */}
-        <div
-          className={`bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-none
-            ${hideCourts ? 'flex-1 w-full p-2 sm:p-4' : 'p-1.5 sm:p-3'}
-          `}
-          style={hideCourts ? undefined : { width: `${rightWidth}px`, minWidth: '180px', maxWidth: '420px' }}
-        >          {/* Header title inside panel */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-1 sm:pb-2 mb-1.5 sm:mb-3">
-            <span className="text-[9px] sm:text-[10px] font-black text-amber-400 uppercase tracking-widest">{t('statEntryPanelTitle')}</span>
-          </div>
-
-          <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar gap-1.5 sm:gap-3 text-[9px] sm:text-[10px] pr-0.5">
-            {/* Step 1: Player selection mapped to court rotation */}
-            <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800">
-              <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 font-black uppercase tracking-wider flex justify-between items-center">
-                <span>{t('step1Player')}</span>
-                <span className="text-slate-500 text-[6px] bg-slate-900 px-1 rounded border border-slate-800">SYNCED</span>
-              </label>
-              
-              {/* Grid 3x2 corresponding to actual court rotation positions */}
-              <div className="grid grid-cols-3 gap-1 sm:gap-1.5">
-                {[3, 2, 1, 4, 5, 0].map(idx => {
-                  const num = players[idx];
-                  const zoneNum = idx + 1;
-                  const details = (teamRoster as Record<string, any>)[num] || { name: '-', position: '-' };
-                  const shortName = details.name && details.name !== '-' ? details.name.split(' ')[0].slice(0, 7) : null;
-                  return (
-                    <button
-                      key={`p-panel-${zoneNum}-${num}`}
-                      onClick={() => setCurrentEvent(prev => ({ ...prev, player: num, startZone: zoneNum }))}
-                      className={`py-1.5 sm:py-2.5 rounded-lg border flex flex-col items-center justify-center transition-all active:scale-95 shadow-sm relative
-                        ${currentEvent.player === num ? 'bg-amber-500 border-amber-400 text-slate-900 ring-2 ring-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'}
-                      `}
-                    >
-                      <span className="absolute top-0.5 left-1 text-[6.5px] sm:text-[8px] font-black opacity-45">R{zoneNum}</span>
-                      <span className="font-black text-sm sm:text-base md:text-lg leading-none mt-1 sm:mt-1.5">{num}</span>
-                      {shortName && <span className="text-[6px] sm:text-[8px] opacity-90 mt-0.5 font-bold truncate max-w-full px-0.5">{shortName}</span>}
-                      <span className="text-[5.5px] sm:text-[7.5px] opacity-70 uppercase font-bold">({details.position})</span>
-                    </button>
-                  )
-                })}
-              </div>
             </div>
 
-            {/* Step 2: Skills */}
-            <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800">
-              <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
-                {t('step2Skill')}
-              </label>
-              <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5">
-                {SKILLS.map(skill => (
-                  <button
-                    key={skill.id}
-                    onClick={() => setCurrentEvent(prev => ({ ...prev, skill: skill.id }))}
-                    className={`py-2.5 sm:py-4 rounded-lg font-black transition-colors border leading-none shadow-sm active:scale-95 text-[10px] sm:text-[11px] md:text-[12.5px]
-                      ${currentEvent.skill === skill.id ? (skill.colorActive + ' ring-2 ring-white shadow-lg') : (skill.color + ' opacity-80 hover:opacity-100')}
-                    `}
-                  >
-                    <span className="hidden sm:inline">{getLocalizedSkillLabel(skill.id, lang)}</span>
-                    <span className="sm:hidden">{getLocalizedSkillLabel(skill.id, lang).split(' ')[0]}</span>
-                  </button>
-                ))}
-              </div>
+            {/* Dashboard */}
+            <div className="flex-1 min-h-[350px] bg-slate-900 rounded-xl border border-slate-800 shadow-inner p-1.5">
+              <Dashboard 
+                 events={events} 
+                 rotations={rotations} 
+                 roster={roster}
+                 role={role}
+                 teamNames={teamNames}
+                 timeouts={timeouts}
+                 currentSet={currentSet}
+                 setScores={setScores}
+                 hideTabs={hideTabs}
+                 currentServe={currentServe}
+              />
             </div>
+          </div>
 
-            {/* Step 3: Evaluations */}
-            <div className="bg-slate-950/50 p-1 sm:p-2 rounded-xl border border-slate-800 flex-1 flex flex-col">
-              <label className="text-[7.5px] sm:text-[9px] text-amber-500 mb-1 block font-black uppercase tracking-wider">
-                {t('step3Eval')}
-              </label>
-              <div className="grid grid-cols-3 sm:grid-cols-2 gap-1 sm:gap-1.5 flex-1">
-                {EVALUATIONS.map(evalObj => (
-                  <button
-                    key={evalObj.id}
-                    onClick={() => {
-                      if (currentEvent.player && currentEvent.skill) {
-                        handleEvalClick(evalObj.id);
-                      }
-                    }}
-                    disabled={!currentEvent.player || !currentEvent.skill}
-                    className={`py-2.5 sm:py-3.5 rounded-lg font-black text-white transition-all active:scale-95 leading-none shadow-md disabled:opacity-20 disabled:scale-100 flex items-center justify-center text-[10px] sm:text-[11.5px] md:text-[13px]
-                      ${currentEvent.eval === evalObj.id ? evalObj.color + ' ring-2 ring-white scale-105 shadow-xl' : evalObj.color + ' opacity-90 hover:opacity-100 border border-black/20'}
-                    `}
-                  >
-                    <span className="hidden sm:inline">{getLocalizedEvalLabel(evalObj.id, lang)}</span>
-                    <span className="sm:hidden text-xs">{evalObj.id}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Column 2: Action Keying Panel */}
+          <div className="w-[300px] sm:w-[325px] shrink-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 p-1.5 sm:p-3 overflow-hidden">
+            {renderActionPanel()}
           </div>
         </div>
-      </div>
+      ) : (
+        /* Original Landscape layout */
+        <div className="flex-1 flex flex-row overflow-hidden relative min-h-0 w-full gap-1.5 p-1 sm:p-2">
+          {status === 'finished' && (
+            <div className="absolute inset-0 bg-slate-950/85 z-40 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-200">
+              <Trophy className="w-12 h-12 text-amber-400 mb-2 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]" />
+              <h3 className="text-sm font-black text-white mb-0.5">{t('matchHasEnded')}</h3>
+              <p className="text-[10px] text-slate-400 mb-3 max-w-xs">{t('roomFinishedStatus')}</p>
+              <button 
+                onClick={onResumeMatch}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg border border-indigo-500 shadow-md active:scale-95 transition-all"
+              >
+                {t('resumeMatchBtn')}
+              </button>
+            </div>
+          )}
+          
+          {/* LEFT: Compact courts wrapper */}
+          {!hideCourts && (
+            <div className="flex-1 flex flex-col items-center justify-center bg-slate-950/40 rounded-xl border border-slate-800/60 p-1 sm:p-2 min-h-0 overflow-hidden">
+               {renderCourt()}
+            </div>
+          )}
+
+          {/* Splitter handle */}
+          {!hideCourts && (
+            <div
+              className="hidden md:flex w-2.5 hover:w-3 bg-slate-900 border-x border-slate-800 hover:bg-indigo-600 hover:border-indigo-500 cursor-col-resize self-stretch transition-all duration-150 relative items-center justify-center shrink-0 group select-none z-40"
+              onMouseDown={handleRightMouseDown}
+              onTouchStart={handleRightTouchStart}
+            >
+              <div className="w-1 h-8 rounded-full bg-slate-700 group-hover:bg-indigo-300 transition-colors" />
+            </div>
+          )}
+
+          {/* RIGHT: Action Keying Panel */}
+          <div
+            className={`bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col z-35 transition-none
+              ${hideCourts ? 'flex-1 w-full p-2 sm:p-4' : 'p-1.5 sm:p-3'}
+            `}
+            style={hideCourts ? undefined : { width: `${rightWidth}px`, minWidth: '180px', maxWidth: '420px' }}
+          >
+            {renderActionPanel()}
+          </div>
+        </div>
+      )}
 
 
       {subModalOpen && (
@@ -4454,6 +4542,22 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState('');
   
   const [activeMobileView, setActiveMobileView] = useState('court');
+  const [isPortrait, setIsPortrait] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerHeight > window.innerWidth;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [setEndData, setSetEndData] = useState(null);
 
   const [leftWidth, setLeftWidth] = useState(380);
@@ -6497,6 +6601,43 @@ export default function App() {
       <main className="flex-1 flex flex-col md:flex-row w-full h-full gap-2 overflow-hidden p-2 min-h-0">
         {role === ROLES.UNASSIGNED ? (
           <RoleSelection onSelect={setRole} />
+        ) : isPortrait && role !== ROLES.COACH ? (
+          <div className="flex flex-col w-full h-full overflow-hidden transition-all duration-150">
+             <TrackerView 
+                status={matchData.status}
+                onManualEndSet={handleManualEndSet}
+                onManualEndMatch={handleManualEndMatch}
+                onResumeMatch={handleResumeMatch}
+                role={role} 
+                score={matchData.score}
+                teamNames={matchData.teamNames || { home: "HOME", away: "AWAY" }}
+                rotations={matchData.rotations} 
+                roster={matchData.roster}
+                tempRallyEvents={matchData.tempRallyEvents || []}
+                timeouts={matchData.timeouts}
+                currentServe={matchData.currentServe}
+                onSaveEvent={handleAddToTempRally}
+                onCommitRally={handleCommitRally}
+                onClearRally={handleClearTempRally}
+                onUndo={handleUndoLastEvent}
+                onFoul={(fType) => handleFoul(role, fType)}
+                onSubstitution={(target, sub) => handleSubstitution(role, target, sub)}
+                onManualRotate={() => rotateTeamClockwise(role)}
+                hasEvents={matchData.events.filter(e => e.team === role).length > 0}
+                autoLiberoSwapEnabled={autoLiberoSwapEnabled}
+                setAutoLiberoSwapEnabled={setAutoLiberoSwapEnabled}
+                isPortrait={true}
+                setsWon={matchData.setsWon}
+                events={matchData.events}
+                currentSet={matchData.score?.set || 1}
+                setScores={matchData.setScores || []}
+                hideTabs={role !== ROLES.COACH}
+                onUpdateScore={handleUpdateScore}
+                onTimeout={handleTimeout}
+                onUpdateServe={handleUpdateServe}
+                onReduceTimeout={handleReduceTimeout}
+             />
+          </div>
         ) : (
           <div className={`flex flex-col md:flex-row w-full h-full gap-1 md:gap-0 overflow-hidden transition-all duration-150 ${isActionLocked ? 'pointer-events-none opacity-60 cursor-not-allowed select-none' : ''}`}>
             {/* Dashboard / Stats layout */}
@@ -6622,7 +6763,7 @@ export default function App() {
       )}
 
       {/* Bottom bar navigation for mobile screens */}
-      {role !== ROLES.UNASSIGNED && role !== ROLES.COACH && (
+      {role !== ROLES.UNASSIGNED && role !== ROLES.COACH && !isPortrait && (
         <div className="md:hidden flex h-14 shrink-0 bg-slate-950 border-t border-slate-800 items-center justify-around text-[10px] z-30 pb-2">
           <button 
             onClick={() => setActiveMobileView('stats')}
