@@ -3524,14 +3524,14 @@ function TrackerView({
                   key={`opp-${zone.id}`}
                   onClick={() => handleZoneClick(zone.id, true)}
                   style={{ backgroundColor: isOppSelected ? undefined : oppIsFrontRow ? 'rgba(60,20,0,0.38)' : 'rgba(255,220,180,0.10)' }}
-                  className={`border border-white/20 flex items-center justify-center text-sm sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
+                  className={`border border-white/20 flex flex-col items-center justify-center text-sm sm:text-base md:text-lg font-black transition-all relative group cursor-pointer hover:bg-white/20 hover:text-white
                     ${isOppSelected ? 'bg-rose-500/80 text-white scale-95 shadow-inner ring-2 ring-white' : 'text-white/20'}
                   `}
                 >
-                  {zone.label}
                   {zone.id === 1 && isOppServing && (
-                    <VolleyballIcon className="w-3.5 h-3.5 text-amber-400 animate-[spin_5s_linear_infinite] absolute top-1 right-1 bg-slate-900 rounded-full border border-amber-500/50 p-0.5 shadow-md z-30" />
+                    <VolleyballIcon className="w-[18px] h-[18px] text-amber-400 animate-[spin_5s_linear_infinite] mb-1.5 z-30" />
                   )}
+                  <span className={isOppSelected ? 'text-white' : 'text-white/20'}>{zone.label}</span>
                 </button>
               );
             })}
@@ -3565,11 +3565,11 @@ function TrackerView({
                   `}
                 >
                   <span className={`absolute top-0.5 left-1 text-[9px] sm:text-[10px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
-                  {zone.id === 1 && isOwnServing && (
-                    <VolleyballIcon className="w-3.5 h-3.5 text-amber-400 animate-[spin_5s_linear_infinite] absolute top-1 right-1 bg-slate-900 rounded-full border border-amber-500/50 p-0.5 shadow-md z-30" />
-                  )}
                   {playerNum ? (
                     <div className="flex flex-col items-center justify-center w-full px-1">
+                       {zone.id === 1 && isOwnServing && (
+                         <VolleyballIcon className="w-[18px] h-[18px] text-amber-400 animate-[spin_5s_linear_infinite] mb-1.5 z-30" />
+                       )}
                        <span className={`text-xl sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
                        <span className="text-[8px] sm:text-[9.5px] px-1.5 py-0.5 font-bold bg-slate-900/60 text-amber-300 rounded-sm leading-none mt-0.5 uppercase shadow-sm border border-slate-800/50">{playerDetails.position}</span>
                        {playerDetails.name && playerDetails.name !== '-' && (
@@ -3579,7 +3579,12 @@ function TrackerView({
                        )}
                     </div>
                   ) : (
-                    <span className="text-xs sm:text-sm font-black text-white/10">{zone.label}</span>
+                    <div className="flex flex-col items-center justify-center">
+                       {zone.id === 1 && isOwnServing && (
+                         <VolleyballIcon className="w-[18px] h-[18px] text-amber-400 animate-[spin_5s_linear_infinite] mb-1.5 z-30" />
+                       )}
+                       <span className="text-xs sm:text-sm font-black text-white/10">{zone.label}</span>
+                    </div>
                   )}
                 </button>
               );
