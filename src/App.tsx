@@ -3518,6 +3518,7 @@ function TrackerView({
             {OPP_COURT_ZONES.map(zone => {
               const oppIsFrontRow = [2, 3, 4].includes(zone.id);
               const isOppSelected = currentEvent.endZone === zone.id;
+              const isOppServing = currentServe !== null && currentServe === (role === 'home' ? 'away' : 'home');
               return (
                 <button
                   key={`opp-${zone.id}`}
@@ -3528,6 +3529,9 @@ function TrackerView({
                   `}
                 >
                   {zone.label}
+                  {zone.id === 1 && isOppServing && (
+                    <VolleyballIcon className="w-3.5 h-3.5 text-amber-400 animate-[spin_5s_linear_infinite] absolute top-1 right-1 bg-slate-900 rounded-full border border-amber-500/50 p-0.5 shadow-md z-30" />
+                  )}
                 </button>
               );
             })}
@@ -3549,6 +3553,7 @@ function TrackerView({
               const playerNum = getPlayerInZone(zone.id);
               const playerDetails = (teamRoster as Record<string, any>)[playerNum] || { name: '-', position: '-' };
               const isSelected = currentEvent.startZone === zone.id;
+              const isOwnServing = currentServe !== null && currentServe === role;
 
               return (
                 <button
@@ -3560,6 +3565,9 @@ function TrackerView({
                   `}
                 >
                   <span className={`absolute top-0.5 left-1 text-[9px] sm:text-[10px] font-black ${isSelected ? 'text-white' : 'text-white/40'}`}>{zone.label}</span>
+                  {zone.id === 1 && isOwnServing && (
+                    <VolleyballIcon className="w-3.5 h-3.5 text-amber-400 animate-[spin_5s_linear_infinite] absolute top-1 right-1 bg-slate-900 rounded-full border border-amber-500/50 p-0.5 shadow-md z-30" />
+                  )}
                   {playerNum ? (
                     <div className="flex flex-col items-center justify-center w-full px-1">
                        <span className={`text-xl sm:text-2xl md:text-3xl font-black leading-none drop-shadow-md ${isSelected ? 'text-white' : 'text-white/90'}`}>{playerNum}</span>
