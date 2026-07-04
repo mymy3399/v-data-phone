@@ -2769,6 +2769,52 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
   const [newSubNum, setNewSubNum] = useState('');
   const [newSubName, setNewSubName] = useState('');
   const [newSubPos, setNewSubPos] = useState('OH');
+  
+  const [activeSelectZoneIndex, setActiveSelectZoneIndex] = useState<number | null>(null);
+  const [quickNum, setQuickNum] = useState('');
+  const [quickName, setQuickName] = useState('');
+  const [quickPos, setQuickPos] = useState('OH');
+
+  const COURT_LAYOUT = [
+    { index: 3, label: 'R4' }, { index: 2, label: 'R3' }, { index: 1, label: 'R2' },
+    { index: 4, label: 'R5' }, { index: 5, label: 'R6' }, { index: 0, label: 'R1' }
+  ];
+
+  const handleAssignPlayer = (num) => {
+    if (activeSelectZoneIndex === null) return;
+    const idx = activeSelectZoneIndex;
+    
+    const newLRot = [...lineup];
+    const existingIdx = newLRot.indexOf(num);
+    
+    if (existingIdx !== -1 && existingIdx !== idx) {
+      // Swap the players between these two zones
+      const temp = newLRot[idx];
+      newLRot[idx] = num;
+      newLRot[existingIdx] = temp;
+    } else {
+      // Unassign whatever was in this zone
+      const oldNum = newLRot[idx];
+      if (oldNum && roster[oldNum]) {
+        setRoster(prev => ({
+          ...prev,
+          [oldNum]: { ...prev[oldNum], isStarter: false }
+        }));
+      }
+      newLRot[idx] = num;
+    }
+    
+    setLineup(newLRot);
+    
+    if (num && roster[num]) {
+      setRoster(prev => ({
+        ...prev,
+        [num]: { ...prev[num], isStarter: true }
+      }));
+    }
+    
+    setActiveSelectZoneIndex(null);
+  };
 
   const handleNumChange = (index, value) => {
     const newRots = [...lineup];
@@ -2826,6 +2872,9 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
     const updated = { ...roster };
     delete updated[num];
     setRoster(updated);
+    
+    const newLRot = lineup.map(item => item === num ? '' : item);
+    setLineup(newLRot);
   };
 
   const handleSave = () => {
@@ -2852,7 +2901,7 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
     onSave(lineup, roster, teamNames, matchInfo);
   };
 
-  const substitutes = Object.entries(roster as Record<string, any>).filter(([_, details]) => !details.isStarter);
+  const allPlayers = Object.entries(roster as Record<string, any>).sort((a, b) => (parseInt(a[0]) || 0) - (parseInt(b[0]) || 0));
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3 backdrop-blur-sm overflow-y-auto">
@@ -2984,78 +3033,107 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
                 <h3 className="text-[11px] font-bold text-indigo-400 mb-2 border-b border-slate-800 pb-1.5 flex justify-between items-center">
                   <span>{t('startersTitle')}</span>
                 </h3>
-                <div className="flex flex-col gap-1.5">
-                  {[1, 2, 3, 4, 5, 6].map((zone, idx) => {
-                    const playerNum = lineup[idx] || '';
-                    const playerDetails = roster[playerNum] || { name: '', position: 'OH' };
-                    return (
-                      <div key={idx} className="bg-slate-800/60 p-2 rounded-lg border border-slate-700/50 flex flex-col gap-1.5">
-                        <span className="text-[9px] text-amber-400 font-bold leading-none">{t('zonePositionLabel').replace('{zone}', String(zone))}</span>
-                        <div className="flex gap-1.5">
-                          <input 
-                            type="text" 
-                            value={playerNum} 
-                            onChange={(e) => handleNumChange(idx, e.target.value)} 
-                            placeholder={t('noPlaceholder')} 
-                            className="w-12 bg-slate-950 border border-slate-600 rounded px-1.5 py-1 text-white text-center text-[12px] font-bold focus:border-indigo-500 outline-none" 
-                          />
-                          <input 
-                            type="text" 
-                            value={playerDetails.name} 
-                            onChange={(e) => handleMetadataChange(playerNum, 'name', e.target.value)} 
-                            placeholder={t('namePlaceholder')} 
-                            disabled={!playerNum}
-                            className="flex-1 bg-slate-950 border border-slate-600 rounded px-2 text-white text-[12px] disabled:opacity-40 focus:border-indigo-500 outline-none" 
-                          />
-                          <select 
-                            value={playerDetails.position} 
-                            onChange={(e) => handleMetadataChange(playerNum, 'position', e.target.value)} 
-                            disabled={!playerNum}
-                            className="w-16 bg-slate-950 border border-slate-600 rounded px-1 text-white text-[11px] outline-none disabled:opacity-40 focus:border-indigo-500"
-                          >
-                            {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    )
-                  })}
+                
+                {/* COURT DIAGRAM VIEW FOR STARTING ROTATION */}
+                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner relative flex flex-col items-center">
+                  <span className="text-[9px] text-amber-500 font-extrabold uppercase tracking-wider mb-3.5 block text-center animate-pulse">
+                    {lang === 'en' ? '👉 Tap zones to assign/select starters' : '👉 แตะตำแหน่งในสนามเพื่อจัดตัวจริง'}
+                  </span>
+                  
+                  {/* Court grid layout */}
+                  <div className="w-full max-w-[280px] sm:max-w-[300px] aspect-[4/3] grid grid-cols-3 grid-rows-2 gap-2 bg-slate-900 border-2 border-slate-700/80 p-2 rounded-xl relative shadow-md">
+                    {COURT_LAYOUT.map(layout => {
+                      const idx = layout.index;
+                      const zoneLabel = layout.label;
+                      const playerNum = lineup[idx];
+                      const playerDetails = roster[playerNum];
+                      
+                      return (
+                        <button
+                          key={zoneLabel}
+                          type="button"
+                          onClick={() => setActiveSelectZoneIndex(idx)}
+                          className={`flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 relative hover:scale-102 cursor-pointer shadow active:scale-95
+                            ${playerNum 
+                              ? 'bg-slate-800 border-indigo-500 text-white shadow-[0_0_8px_rgba(99,102,241,0.2)]' 
+                              : 'bg-slate-950/40 border-slate-800 hover:border-slate-700 border-dashed text-slate-500'
+                            }
+                          `}
+                        >
+                          {/* Zone label */}
+                          <span className="absolute top-1 right-1 text-[8px] font-black text-slate-500/85 uppercase">{zoneLabel}</span>
+                          
+                          {playerNum ? (
+                            <div className="flex flex-col items-center justify-center leading-none mt-1">
+                              {/* Jersey */}
+                              <span className="w-6 h-6 rounded-full bg-slate-950 border border-indigo-500/40 flex items-center justify-center font-mono font-black text-xs text-indigo-400 shadow-inner mb-1 select-none">
+                                {playerNum}
+                              </span>
+                              {/* Name */}
+                              <span className="text-[9px] font-extrabold text-slate-200 truncate max-w-[65px] mb-0.5">
+                                {playerDetails?.name || `Player-${playerNum}`}
+                              </span>
+                              {/* Position */}
+                              <span className={`text-[6.5px] px-1 rounded uppercase font-black tracking-wider leading-none mt-0.5
+                                ${playerDetails?.position === 'S' ? 'bg-indigo-500/20 text-indigo-300' :
+                                  playerDetails?.position === 'OH' ? 'bg-sky-500/20 text-sky-300' :
+                                  playerDetails?.position === 'OP' ? 'bg-teal-500/20 text-teal-300' :
+                                  playerDetails?.position === 'MB' ? 'bg-emerald-500/20 text-emerald-300' :
+                                  playerDetails?.position === 'L' ? 'bg-amber-500/20 text-amber-300' :
+                                  'bg-slate-500/20 text-slate-300'}
+                              `}>
+                                {playerDetails?.position || 'OH'}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-1 text-slate-655 hover:text-slate-400 mt-1 select-none">
+                              <Plus className="w-3.5 h-3.5 opacity-40" />
+                              <span className="text-[8px] font-extrabold uppercase tracking-wider">{lang === 'en' ? 'Assign' : 'ระบุตัว'}</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                    {/* Net line */}
+                    <div className="absolute top-1/2 left-0 w-full border-t border-slate-700/60 pointer-events-none"></div>
+                  </div>
                 </div>
              </div>
            </div>
 
            <div className="flex flex-col gap-2">
              <div className="h-full flex flex-col">
-                <h3 className="text-[11px] font-bold text-purple-400 mb-2 border-b border-slate-800 pb-1.5">
-                  {t('subsTitle')}
+                <h3 className="text-[11px] font-bold text-indigo-400 mb-2 border-b border-slate-800 pb-1.5">
+                  {lang === 'en' ? 'All Team Players' : 'รายชื่อผู้เล่นทั้งหมดในทีม'}
                 </h3>
                 
-                <div className="bg-purple-900/10 border border-purple-800/30 p-3 rounded-xl flex flex-col gap-2 mb-3 shrink-0">
-                  <span className="text-[9px] text-purple-300 font-bold uppercase tracking-wider">{t('addSubTitle')}</span>
+                <div className="bg-slate-805 p-3 rounded-xl border border-slate-700 flex flex-col gap-2 mb-3 shrink-0 shadow-inner">
+                  <span className="text-[9px] text-indigo-300 font-bold uppercase tracking-wider">{lang === 'en' ? 'Add Player to Team:' : 'เพิ่มผู้เล่นใหม่เข้าสู่ทีม:'}</span>
                   <div className="flex gap-1.5">
                     <input 
                       type="text" 
                       value={newSubNum} 
                       onChange={(e) => setNewSubNum(e.target.value)} 
                       placeholder={t('noPlaceholder')} 
-                      className="w-10 bg-slate-950 border border-slate-600 rounded px-1.5 text-white text-center text-[12px] font-bold outline-none focus:border-purple-500" 
+                      className="w-10 bg-slate-950 border border-slate-600 rounded px-1.5 text-white text-center text-[12px] font-bold outline-none focus:border-indigo-500" 
                     />
                     <input 
                       type="text" 
                       value={newSubName} 
                       onChange={(e) => setNewSubName(e.target.value)} 
                       placeholder={t('namePlaceholder')} 
-                      className="flex-1 bg-slate-950 border border-slate-600 rounded px-2 text-white text-[12px] outline-none focus:border-purple-500" 
+                      className="flex-1 bg-slate-950 border border-slate-600 rounded px-2 text-white text-[12px] outline-none focus:border-indigo-500" 
                     />
                     <select 
                       value={newSubPos} 
                       onChange={(e) => setNewSubPos(e.target.value)} 
-                      className="w-14 bg-slate-950 border border-slate-600 rounded px-1 text-white text-[11px] outline-none focus:border-purple-500"
+                      className="w-14 bg-slate-950 border border-slate-600 rounded px-1 text-white text-[11px] outline-none focus:border-indigo-500"
                     >
                       {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                     <button 
                       onClick={handleAddSubstitute}
-                      className="bg-purple-600 hover:bg-purple-500 text-white px-3 rounded-lg text-[10px] font-bold shadow-md transition-all active:scale-95"
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 rounded-lg text-[10px] font-bold shadow-md transition-all active:scale-95 cursor-pointer"
                     >
                       {t('addBtn')}
                     </button>
@@ -3063,15 +3141,26 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
                 </div>
 
                 <div className="flex-1 flex flex-col gap-1.5 overflow-y-auto custom-scrollbar min-h-0 bg-slate-950/50 p-2 rounded-xl border border-slate-800/50">
-                  {substitutes.length === 0 ? (
-                    <div className="text-slate-500 text-[10px] text-center py-6">{t('noSubsMessage')}</div>
+                  {allPlayers.length === 0 ? (
+                    <div className="text-slate-500 text-[10px] text-center py-6">{lang === 'en' ? 'No players in roster' : 'ไม่มีรายชื่อผู้เล่นในทีม'}</div>
                   ) : (
-                    substitutes.map(([num, details]) => (
+                    allPlayers.map(([num, details]) => (
                       <div key={num} className="bg-slate-800/80 border border-slate-700 px-3 py-2 rounded-lg flex justify-between items-center text-[12px] shadow-sm">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold bg-purple-900/60 text-purple-300 px-1.5 py-0.5 rounded text-[10px] w-6 text-center">#{num}</span>
-                          <span className="text-white font-medium truncate max-w-[120px]">{details.name}</span>
+                          <span className="font-bold bg-indigo-950 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded text-[10px] w-6 text-center">#{num}</span>
+                          <span className="text-white font-medium truncate max-w-[100px]">{details.name}</span>
                           <span className="text-slate-400 text-[9px] font-mono bg-slate-900 px-1.5 rounded">{details.position}</span>
+                          
+                          {/* Starter status badge */}
+                          {details.isStarter ? (
+                            <span className="text-[7.5px] bg-indigo-500/20 text-indigo-300 px-1 rounded uppercase font-black tracking-wide leading-none py-0.5">
+                              {lang === 'en' ? 'Starter' : 'ตัวจริง'}
+                            </span>
+                          ) : (
+                            <span className="text-[7.5px] bg-slate-750 text-slate-400 px-1 rounded uppercase font-black tracking-wide leading-none py-0.5">
+                              {lang === 'en' ? 'Sub' : 'สำรอง'}
+                            </span>
+                          )}
                         </div>
                         <button 
                           onClick={() => handleRemoveSub(num)}
@@ -3084,16 +3173,169 @@ function PlayerSetupModal({ team, currentRotations, currentRoster, currentTeamNa
                   )}
                 </div>
              </div>
-           </div>
-        </div>
-
-        <div className="p-3 border-t border-slate-800 flex justify-end gap-2 bg-slate-950 rounded-b-2xl shrink-0">
+            </div>
+          </div>
+          <div className="p-3 border-t border-slate-800 flex justify-end gap-2 bg-slate-950 rounded-b-2xl shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white text-xs font-medium">{t('cancelBtn')}</button>
           <button onClick={handleSave} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-md flex items-center gap-1.5 text-xs transition-transform active:scale-95">
             <Check className="w-4 h-4"/> {t('saveSetupBtn')}
           </button>
         </div>
       </div>
+
+      {/* Interactive Zone Assignment Dropdown Modal overlay */}
+      {activeSelectZoneIndex !== null && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-4 shadow-2xl flex flex-col max-h-[80vh]">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-slate-800 pb-2.5 mb-3 shrink-0">
+              <h3 className="text-xs sm:text-sm font-black text-indigo-400 flex items-center gap-1.5 uppercase">
+                <Users className="w-4 h-4 text-indigo-300" />
+                {lang === 'en' 
+                  ? `Assign Player to R${activeSelectZoneIndex === 0 ? 1 : activeSelectZoneIndex === 1 ? 2 : activeSelectZoneIndex === 2 ? 3 : activeSelectZoneIndex === 3 ? 4 : activeSelectZoneIndex === 4 ? 5 : 6}`
+                  : `ระบุผู้เล่นตำแหน่ง R${activeSelectZoneIndex === 0 ? 1 : activeSelectZoneIndex === 1 ? 2 : activeSelectZoneIndex === 2 ? 3 : activeSelectZoneIndex === 3 ? 4 : activeSelectZoneIndex === 4 ? 5 : 6}`}
+              </h3>
+              <button 
+                onClick={() => {
+                  setActiveSelectZoneIndex(null);
+                  setQuickNum('');
+                  setQuickName('');
+                }} 
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* List of existing players in roster */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1.5 pr-1 min-h-0">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                {lang === 'en' ? 'Select from roster:' : 'เลือกผู้เล่นจากรายชื่อ:'}
+              </span>
+              
+              {/* Option to clear zone */}
+              <button
+                type="button"
+                onClick={() => {
+                  const newLRot = [...lineup];
+                  const oldNum = newLRot[activeSelectZoneIndex];
+                  if (oldNum && roster[oldNum]) {
+                    setRoster(prev => ({ ...prev, [oldNum]: { ...prev[oldNum], isStarter: false } }));
+                  }
+                  newLRot[activeSelectZoneIndex] = '';
+                  setLineup(newLRot);
+                  setActiveSelectZoneIndex(null);
+                }}
+                className="w-full bg-slate-950/60 hover:bg-slate-800 border border-slate-850 hover:border-slate-700 py-2.5 px-3 rounded-xl flex items-center gap-2.5 transition-all text-rose-450 font-extrabold text-[11px] cursor-pointer shadow-sm"
+              >
+                <Trash2 className="w-4 h-4 text-rose-400" />
+                <span>{lang === 'en' ? 'Clear Position (Empty)' : 'เคลียร์ตำแหน่งนี้ (ว่าง)'}</span>
+              </button>
+
+              {/* Roster players list */}
+              {Object.entries(roster as Record<string, any>).map(([num, details]) => {
+                const isCurrentStarter = lineup[activeSelectZoneIndex] === num;
+                const isOtherStarter = lineup.includes(num) && !isCurrentStarter;
+                const otherZoneIdx = lineup.indexOf(num);
+                const otherZoneLabel = otherZoneIdx !== -1 ? `R${otherZoneIdx === 0 ? 1 : otherZoneIdx === 1 ? 2 : otherZoneIdx === 2 ? 3 : otherZoneIdx === 3 ? 4 : otherZoneIdx === 4 ? 5 : 6}` : '';
+
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => handleAssignPlayer(num)}
+                    className={`w-full text-left py-2 px-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer shadow-sm
+                      ${isCurrentStarter 
+                        ? 'bg-indigo-600 border-indigo-500 text-white font-extrabold' 
+                        : 'bg-slate-950 border-slate-850 hover:border-slate-700 text-slate-300 hover:bg-slate-800'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-5 h-5 rounded-full font-mono font-black text-[10px] border flex items-center justify-center
+                        ${isCurrentStarter 
+                          ? 'bg-indigo-950 text-indigo-400 border-indigo-400/40 shadow-inner' 
+                          : 'bg-slate-900 text-slate-400 border-slate-800'
+                        }
+                      `}>
+                        {num}
+                      </span>
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-[11px] font-bold">{details.name}</span>
+                        <span className="text-[8px] text-slate-500 lowercase font-medium">
+                          {isOtherStarter 
+                            ? (lang === 'en' ? `currently in ${otherZoneLabel}` : `ยืนอยู่ที่ตำแหน่ง ${otherZoneLabel}`) 
+                            : details.isStarter 
+                              ? (lang === 'en' ? 'starter' : 'ตัวจริง') 
+                              : (lang === 'en' ? 'sub' : 'ตัวสำรอง')
+                          }
+                        </span>
+                      </div>
+                    </div>
+                    <span className="font-mono text-[9px] bg-slate-900 border border-slate-850 text-amber-400 px-1.5 py-0.5 rounded uppercase font-bold shrink-0">
+                      {details.position}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick add new player block */}
+            <div className="border-t border-slate-800 pt-3.5 mt-3 shrink-0 flex flex-col gap-2 bg-slate-900">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">
+                {lang === 'en' ? 'Or create & assign a new player:' : 'หรือสร้างผู้เล่นใหม่และระบุตำแหน่ง:'}
+              </span>
+              
+              <div className="flex flex-col gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-850 shadow-inner">
+                <div className="flex gap-1.5">
+                  <input 
+                    type="text" 
+                    value={quickNum}
+                    onChange={(e) => setQuickNum(e.target.value)}
+                    placeholder={lang === 'en' ? 'No.' : 'เบอร์'}
+                    className="w-10 bg-slate-900 border border-slate-700 rounded px-1 text-white text-center text-[11px] font-bold outline-none focus:border-indigo-500"
+                  />
+                  <input 
+                    type="text" 
+                    value={quickName}
+                    onChange={(e) => setQuickName(e.target.value)}
+                    placeholder={lang === 'en' ? 'Name' : 'ชื่อ'}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 text-white text-[11px] outline-none focus:border-indigo-500"
+                  />
+                  <select 
+                    value={quickPos}
+                    onChange={(e) => setQuickPos(e.target.value)}
+                    className="w-14 bg-slate-900 border border-slate-700 rounded px-1 text-white text-[11px] outline-none focus:border-indigo-500"
+                  >
+                    {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!quickNum || !quickName) return;
+                    const cleanNum = quickNum.trim();
+                    if (roster[cleanNum]) {
+                      alert(lang === 'en' ? `Number #${cleanNum} already exists in the roster!` : `หมายเลข #${cleanNum} มีอยู่รายชื่อทีมแล้ว!`);
+                      return;
+                    }
+                    setRoster(prev => ({
+                      ...prev,
+                      [cleanNum]: { name: quickName, position: quickPos, isStarter: true }
+                    }));
+                    handleAssignPlayer(cleanNum);
+                    setQuickNum('');
+                    setQuickName('');
+                  }}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 py-1.5 rounded-lg text-white font-bold text-[10px] shadow active:scale-95 transition-transform cursor-pointer"
+                >
+                  {lang === 'en' ? 'Add & Assign Player' : 'เพิ่มและระบุตำแหน่ง'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
