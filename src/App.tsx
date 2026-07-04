@@ -231,6 +231,11 @@ function SkillBarStats({ teamStats }) {
       {SKILLS.map(skill => {
         const stats = teamStats[skill.id] || { total: 0, goodPercent: '0', errorPercent: '0', neutralPercent: '0' };
         const localizedLabel = getLocalizedSkillLabel(skill.id, lang);
+        
+        const goodP = parseFloat(stats.goodPercent) || 0;
+        const neutralP = parseFloat(stats.neutralPercent) || 0;
+        const errorP = parseFloat(stats.errorPercent) || 0;
+
         return (
           <div key={skill.id} className="flex items-center gap-2">
             <div className="w-16 sm:w-20 shrink-0 text-[10px] sm:text-[12px] font-bold text-slate-300 flex justify-between">
@@ -243,22 +248,43 @@ function SkillBarStats({ teamStats }) {
                 <span className="text-[9px] text-slate-600 tracking-wider">{t('noDataLabel')}</span>
               </div>
             ) : (
-              <div className="flex-1 flex items-center gap-2">
-                <div className="flex-1 h-3.5 bg-slate-950 rounded overflow-hidden flex shadow-inner">
-                  {stats.goodPercent > 0 && (
-                    <div style={{ width: `${stats.goodPercent}%` }} className="bg-emerald-500 transition-all"></div>
-                  )}
-                  {stats.neutralPercent > 0 && (
-                    <div style={{ width: `${stats.neutralPercent}%` }} className="bg-amber-500 transition-all"></div>
-                  )}
-                  {stats.errorPercent > 0 && (
-                    <div style={{ width: `${stats.errorPercent}%` }} className="bg-rose-500 transition-all"></div>
-                  )}
-                </div>
-                <div className="w-[38px] sm:w-[48px] shrink-0 flex justify-between text-[10px] sm:text-[11px] font-black">
-                  <span className="text-emerald-400">{stats.goodPercent}%</span>
-                  <span className="text-rose-400">{stats.errorPercent}%</span>
-                </div>
+              <div className="flex-1 h-3.5 bg-slate-950 rounded overflow-hidden flex shadow-inner border border-slate-800/50">
+                {goodP > 0 && (
+                  <div 
+                    style={{ width: `${goodP}%` }} 
+                    className="bg-emerald-500 transition-all flex items-center justify-center min-w-0"
+                  >
+                    {goodP >= 12 && (
+                      <span className="text-[8px] sm:text-[9px] font-black text-slate-950 leading-none truncate select-none px-0.5">
+                        {stats.goodPercent}%
+                      </span>
+                    )}
+                  </div>
+                )}
+                {neutralP > 0 && (
+                  <div 
+                    style={{ width: `${neutralP}%` }} 
+                    className="bg-amber-500 transition-all flex items-center justify-center min-w-0"
+                  >
+                    {neutralP >= 12 && (
+                      <span className="text-[8px] sm:text-[9px] font-black text-slate-950 leading-none truncate select-none px-0.5">
+                        {stats.neutralPercent}%
+                      </span>
+                    )}
+                  </div>
+                )}
+                {errorP > 0 && (
+                  <div 
+                    style={{ width: `${errorP}%` }} 
+                    className="bg-rose-500 transition-all flex items-center justify-center min-w-0"
+                  >
+                    {errorP >= 12 && (
+                      <span className="text-[8px] sm:text-[9px] font-black text-white leading-none truncate select-none px-0.5">
+                        {stats.errorPercent}%
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -4077,14 +4103,21 @@ function TrackerView({
       const error = skillEvents.filter(e => e.eval === '=').length;
       const blocked = skillEvents.filter(e => e.eval === '/').length;
 
-      const positiveCount = perfect + good;
-      const negativeCount = error + blocked;
+      let positiveCount = perfect + good;
+      let negativeCount = error + blocked;
+      let neutralCount = okay + poor;
+
+      if (skill.id === 'block') {
+        positiveCount = perfect;
+        neutralCount = good + okay + poor;
+        negativeCount = error + blocked;
+      }
 
       results[skill.id] = {
         total,
         goodPercent: total > 0 ? ((positiveCount / total) * 100).toFixed(0) : '0',
         errorPercent: total > 0 ? ((negativeCount / total) * 100).toFixed(0) : '0',
-        neutralPercent: total > 0 ? (((okay + poor) / total) * 100).toFixed(0) : '0'
+        neutralPercent: total > 0 ? ((neutralCount / total) * 100).toFixed(0) : '0'
       };
     });
 
