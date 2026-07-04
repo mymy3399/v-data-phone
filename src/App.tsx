@@ -4389,6 +4389,15 @@ function TrackerView({
               </div>
             )}
           </div>
+
+          {/* Explanation Legend */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 mt-1.5 shadow-sm shrink-0 flex items-center">
+            <span className="text-[10px] sm:text-[11px] text-slate-400 font-semibold leading-relaxed">
+              {lang === 'en' 
+                ? '💡 Chart Legend: Green = Point/Advantage | Orange = Neutral | Red = Error/Lost'
+                : '💡 วิธีอ่านกราฟ: เขียว = ได้แต้ม/ได้เปรียบ | ส้ม = ประคองเกม | แดง = เสียแต้ม (Error)'}
+            </span>
+          </div>
         </div>
       )}
 
@@ -4564,6 +4573,15 @@ function TrackerView({
               </table>
             </div>
           </div>
+
+          {/* Explanation Legend */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 mt-1 shadow-sm shrink-0 flex items-center">
+            <span className="text-[10px] sm:text-[11px] text-slate-400 font-semibold leading-relaxed">
+              {lang === 'en' 
+                ? '💡 Stats Legend: Main number = Count | (+1 Green) = Scored | (-1 Red) = Error | EFF = Net Efficiency'
+                : '💡 วิธีอ่านสถิติ: ตัวเลขหลัก = จำนวนครั้ง | (+1 เขียว) = ได้แต้ม | (-1 แดง) = เสียแต้ม | EFF = ประสิทธิภาพสุทธิ'}
+            </span>
+          </div>
         </div>
       )}
 
@@ -4602,32 +4620,52 @@ function TrackerView({
               </div>
             </div>
           </div>
+
+          {/* Explanation Legend */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 mt-1 shadow-sm shrink-0 flex items-center">
+            <span className="text-[10px] sm:text-[11px] text-slate-400 font-semibold leading-relaxed">
+              {lang === 'en' 
+                ? '💡 Heatmap Legend: Opponent court (front on top, back on bottom) | 🟩 Green = High score | 🟫 Brown/Red = High error/blocked'
+                : '💡 วิธีอ่าน Heatmap: จำลองแดนคู่แข่ง (แดนหน้าอยู่บน แดนหลังอยู่ล่าง) | 🟩 เขียว = ได้แต้มบ่อย | 🟫 น้ำตาล/แดง = ตีเสีย/ติดบล็อกบ่อย'}
+            </span>
+          </div>
         </div>
       )}
 
       {/* ROTATION (R1 - R6) VIEW - SPLIT APART AND DISPLAYED COMPACTLY ON ONE PAGE IN VERTICAL COLUMNS */}
       {activeTab === 'rotation' && (
-        <div className={`flex-1 flex gap-2.5 min-h-0 overflow-y-auto custom-scrollbar ${role === ROLES.COACH ? 'flex-col md:flex-row' : 'flex-col'}`}>
-           {showHome && (
-             <div className="flex-1 min-w-0">
-               <RotationAnalysisView 
-                 team="home" 
-                 events={filteredEvents} 
-                 teamName={teamNames.home} 
-                 isHome={true}
-               />
-             </div>
-           )}
-           {showAway && (
-             <div className="flex-1 min-w-0">
-               <RotationAnalysisView 
-                 team="away" 
-                 events={filteredEvents} 
-                 teamName={teamNames.away} 
-                 isHome={false}
-               />
-             </div>
-           )}
+        <div className="flex-1 flex flex-col gap-2.5 min-h-0">
+          <div className={`flex-1 flex gap-2.5 min-h-0 overflow-y-auto custom-scrollbar ${role === ROLES.COACH ? 'flex-col md:flex-row' : 'flex-col'}`}>
+             {showHome && (
+               <div className="flex-1 min-w-0">
+                 <RotationAnalysisView 
+                   team="home" 
+                   events={filteredEvents} 
+                   teamName={teamNames.home} 
+                   isHome={true}
+                 />
+               </div>
+             )}
+             {showAway && (
+               <div className="flex-1 min-w-0">
+                 <RotationAnalysisView 
+                   team="away" 
+                   events={filteredEvents} 
+                   teamName={teamNames.away} 
+                   isHome={false}
+                 />
+               </div>
+             )}
+          </div>
+
+          {/* Explanation Legend */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 mt-1 shadow-sm shrink-0 flex items-center">
+            <span className="text-[10px] sm:text-[11px] text-slate-400 font-semibold leading-relaxed">
+              {lang === 'en' 
+                ? '💡 Rotation Legend: High % = Strong rotation | 🟥 Red border = Critical rotation (adjust needed)'
+                : '💡 วิธีอ่าน: เปอร์เซ็นต์สูง = หน้าเข้าทำดี | 🟥 กรอบสีแดง = หน้าวิกฤตที่เสียแต้มต่อเนื่อง (ควรแก้เกม)'}
+            </span>
+          </div>
         </div>
       )}
 
