@@ -347,13 +347,14 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
               <span className="text-3xl sm:text-4xl font-black font-mono leading-none text-white select-none">{score.home}</span>
             )}
           </div>
-          <div className="flex items-center gap-1 mt-0.5">
-            <div className="text-[8px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
-              {t('setLabel')} <span className="text-indigo-400">{setsWon?.home || 0}</span>
+          <div className="flex items-center gap-1 mt-1">
+            <div className="text-[10px] sm:text-[11px] text-slate-300 font-bold bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-850 shadow-inner flex items-center gap-1 leading-none">
+              <span className="opacity-70 uppercase text-[8px] font-black tracking-wider">{t('setLabel')}</span>
+              <span className="text-indigo-400 font-black text-xs sm:text-sm">{setsWon?.home || 0}</span>
             </div>
             {currentServe !== null && (
-              <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none
-                ${isHomeServe ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
+              <span className={`text-[8px] px-2 py-1 rounded-lg font-black uppercase tracking-wider border leading-none shadow-sm
+                ${isHomeServe ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse font-extrabold' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
                 {isHomeServe ? (lang === 'en' ? 'SRV' : 'เสิร์ฟ') : (lang === 'en' ? 'RCV' : 'รับ')}
               </span>
             )}
@@ -476,15 +477,16 @@ function ScoreBoard({ score, setsWon, role, teamNames, timeouts, currentServe, o
               <span className="text-3xl sm:text-4xl font-black font-mono leading-none text-white select-none">{score.away}</span>
             )}
           </div>
-          <div className="flex items-center gap-1 mt-0.5">
+          <div className="flex items-center gap-1 mt-1">
             {currentServe !== null && (
-              <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none
-                ${isAwayServe ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
+              <span className={`text-[8px] px-2 py-1 rounded-lg font-black uppercase tracking-wider border leading-none shadow-sm
+                ${isAwayServe ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse font-extrabold' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
                 {isAwayServe ? (lang === 'en' ? 'SRV' : 'เสิร์ฟ') : (lang === 'en' ? 'RCV' : 'รับ')}
               </span>
             )}
-            <div className="text-[8px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded-full border border-slate-800">
-              {t('setLabel')} <span className="text-rose-400">{setsWon?.away || 0}</span>
+            <div className="text-[10px] sm:text-[11px] text-slate-300 font-bold bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-850 shadow-inner flex items-center gap-1 leading-none">
+              <span className="opacity-70 uppercase text-[8px] font-black tracking-wider">{t('setLabel')}</span>
+              <span className="text-rose-400 font-black text-xs sm:text-sm">{setsWon?.away || 0}</span>
             </div>
           </div>
         </div>
