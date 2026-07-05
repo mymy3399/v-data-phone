@@ -4550,7 +4550,15 @@ function TrackerView({
                           </div>
                         </td>
                         <td className="py-3 px-2 text-center">
-                          <span className="font-extrabold text-[9px] px-1.5 py-0.5 bg-slate-950 border border-slate-800/80 rounded text-amber-400 uppercase">
+                          <span className={`font-extrabold text-[9px] px-1.5 py-0.5 rounded border uppercase
+                            ${p.position === 'S' ? 'bg-indigo-950 text-indigo-400 border-indigo-500/30' :
+                              p.position === 'OH' ? 'bg-sky-950 text-sky-400 border-sky-500/30' :
+                              p.position === 'OP' ? 'bg-teal-950 text-teal-400 border-teal-500/30' :
+                              p.position === 'MB' ? 'bg-emerald-950 text-emerald-400 border-emerald-500/30' :
+                              p.position === 'L' ? 'bg-amber-950 text-amber-400 border-amber-500/30' :
+                              'bg-slate-950 text-slate-400 border-slate-800'
+                            }
+                          `}>
                             {p.position || '-'}
                           </span>
                         </td>
@@ -4773,8 +4781,20 @@ function TrackerView({
                 </span>
                 <div>
                   <h3 className="text-base font-black text-white">{selectedPlayerForModal.name || '-'}</h3>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                    {selectedPlayerForModal.position || '-'} • {selectedPlayerForModal.isStarter ? (lang === 'en' ? 'Starter' : 'ตัวจริง') : (lang === 'en' ? 'Substitute' : 'ตัวสำรอง')}
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className={`font-black text-[10px] px-2 py-0.5 rounded border leading-none
+                      ${selectedPlayerForModal.position === 'S' ? 'bg-indigo-950 text-indigo-400 border-indigo-500/30' :
+                        selectedPlayerForModal.position === 'OH' ? 'bg-sky-950 text-sky-400 border-sky-500/30' :
+                        selectedPlayerForModal.position === 'OP' ? 'bg-teal-950 text-teal-400 border-teal-500/30' :
+                        selectedPlayerForModal.position === 'MB' ? 'bg-emerald-950 text-emerald-400 border-emerald-500/30' :
+                        selectedPlayerForModal.position === 'L' ? 'bg-amber-950 text-amber-400 border-amber-500/30' :
+                        'bg-slate-950 text-slate-400 border-slate-800'
+                      }
+                    `}>
+                      {selectedPlayerForModal.position || '-'}
+                    </span>
+                    <span>•</span>
+                    <span>{selectedPlayerForModal.isStarter ? (lang === 'en' ? 'Starter' : 'ตัวจริง') : (lang === 'en' ? 'Substitute' : 'ตัวสำรอง')}</span>
                   </p>
                 </div>
               </div>
