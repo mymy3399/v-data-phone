@@ -32,11 +32,11 @@ const VolleyballIcon = ({ className }: { className: string }) => (
 const ROLES = { UNASSIGNED: 'unassigned', HOME: 'home', AWAY: 'away', COACH: 'coach' };
 
 const SKILLS = [
-  { id: 'serve',   label: 'เสิร์ฟ (S)',   color: 'bg-amber-600 border-amber-500 text-white',   colorActive: 'bg-amber-400 border-amber-300 text-slate-900' },
+  { id: 'serve',   label: 'เสิร์ฟ (S)',   color: 'bg-emerald-700 border-emerald-600 text-white', colorActive: 'bg-emerald-400 border-emerald-300 text-slate-900' },
   { id: 'receive', label: 'รับเสิร์ฟ (R)', color: 'bg-sky-700 border-sky-600 text-white',       colorActive: 'bg-sky-400 border-sky-300 text-slate-900' },
   { id: 'set',     label: 'เซต (E)',       color: 'bg-violet-700 border-violet-600 text-white',  colorActive: 'bg-violet-400 border-violet-300 text-slate-900' },
   { id: 'attack',  label: 'ตบ (A)',        color: 'bg-rose-700 border-rose-600 text-white',      colorActive: 'bg-rose-400 border-rose-300 text-white' },
-  { id: 'block',   label: 'บล็อก (B)',     color: 'bg-emerald-700 border-emerald-600 text-white', colorActive: 'bg-emerald-400 border-emerald-300 text-slate-900' },
+  { id: 'block',   label: 'บล็อก (B)',     color: 'bg-amber-600 border-amber-500 text-white',   colorActive: 'bg-amber-400 border-amber-300 text-slate-900' },
   { id: 'dig',     label: 'รับตบ (D)',     color: 'bg-orange-700 border-orange-600 text-white',  colorActive: 'bg-orange-400 border-orange-300 text-slate-900' }
 ];
 
