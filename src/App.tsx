@@ -109,6 +109,28 @@ const INITIAL_MATCH_STATE = {
   liberoSwaps: { home: {}, away: {} }
 };
 
+const ensureValidMatchData = (state: any) => {
+  if (!state) return INITIAL_MATCH_STATE;
+  return {
+    ...INITIAL_MATCH_STATE,
+    ...state,
+    teamNames: state.teamNames ? { ...INITIAL_MATCH_STATE.teamNames, ...state.teamNames } : INITIAL_MATCH_STATE.teamNames,
+    matchInfo: state.matchInfo ? { ...INITIAL_MATCH_STATE.matchInfo, ...state.matchInfo } : INITIAL_MATCH_STATE.matchInfo,
+    score: state.score ? { ...INITIAL_MATCH_STATE.score, ...state.score } : INITIAL_MATCH_STATE.score,
+    setsWon: state.setsWon ? { ...INITIAL_MATCH_STATE.setsWon, ...state.setsWon } : INITIAL_MATCH_STATE.setsWon,
+    timeouts: state.timeouts ? { ...INITIAL_MATCH_STATE.timeouts, ...state.timeouts } : INITIAL_MATCH_STATE.timeouts,
+    rotations: state.rotations ? {
+      home: state.rotations.home || INITIAL_MATCH_STATE.rotations.home,
+      away: state.rotations.away || INITIAL_MATCH_STATE.rotations.away
+    } : INITIAL_MATCH_STATE.rotations,
+    roster: state.roster ? {
+      home: state.roster.home || INITIAL_MATCH_STATE.roster.home,
+      away: state.roster.away || INITIAL_MATCH_STATE.roster.away
+    } : INITIAL_MATCH_STATE.roster,
+    liberoSwaps: state.liberoSwaps ? { ...INITIAL_MATCH_STATE.liberoSwaps, ...state.liberoSwaps } : INITIAL_MATCH_STATE.liberoSwaps
+  };
+};
+
 const getSetterZone = (rotations, roster) => {
   if (!rotations || !roster) return null;
   const setterNum = rotations.find(num => roster[num]?.position === 'S');
@@ -3395,9 +3417,9 @@ function TrackerView({
   };
 
   const teamColor = role === ROLES.HOME ? 'text-indigo-400' : 'text-rose-400';
-  const teamLabel = role === 'home' ? teamNames.home : teamNames.away;
-  const players = role === ROLES.HOME ? rotations.home : rotations.away;
-  const teamRoster = role === ROLES.HOME ? roster.home : roster.away;
+  const teamLabel = role === 'home' ? teamNames?.home : teamNames?.away;
+  const players = (role === ROLES.HOME ? rotations?.home : rotations?.away) || [];
+  const teamRoster = (role === ROLES.HOME ? roster?.home : roster?.away) || {};
 
   const [step, setStep] = useState('select_start'); 
   const [subModalOpen, setSubModalOpen] = useState(false);
@@ -4374,30 +4396,30 @@ function TrackerView({
             {showHome && (
               <div className="bg-indigo-950/20 p-2 rounded-xl border border-indigo-900/30">
                 <span className="text-[10px] font-black text-indigo-400 block mb-1.5 tracking-wider uppercase text-center bg-indigo-900/40 py-1 rounded">
-                  {lang === 'en' ? `${teamNames.home} Rotation` : `ตำแหน่งการยืน ${teamNames.home}`}
+                  {lang === 'en' ? `${teamNames?.home} Rotation` : `ตำแหน่งการยืน ${teamNames?.home}`}
                 </span>
                 <div className="grid grid-cols-3 gap-1">
-                  <RotPlayer num={rotations.home[3]} zone="R4" pos={roster.home[rotations.home[3]]?.position} />
-                  <RotPlayer num={rotations.home[2]} zone="R3" pos={roster.home[rotations.home[2]]?.position} />
-                  <RotPlayer num={rotations.home[1]} zone="R2" pos={roster.home[rotations.home[1]]?.position} />
-                  <RotPlayer num={rotations.home[4]} zone="R5" pos={roster.home[rotations.home[4]]?.position} />
-                  <RotPlayer num={rotations.home[5]} zone="R6" pos={roster.home[rotations.home[5]]?.position} />
-                  <RotPlayer num={rotations.home[0]} zone="R1" pos={roster.home[rotations.home[0]]?.position} isServer={currentServe === 'home'} />
+                  <RotPlayer num={rotations?.home?.[3]} zone="R4" pos={roster?.home?.[rotations?.home?.[3]]?.position} />
+                  <RotPlayer num={rotations?.home?.[2]} zone="R3" pos={roster?.home?.[rotations?.home?.[2]]?.position} />
+                  <RotPlayer num={rotations?.home?.[1]} zone="R2" pos={roster?.home?.[rotations?.home?.[1]]?.position} />
+                  <RotPlayer num={rotations?.home?.[4]} zone="R5" pos={roster?.home?.[rotations?.home?.[4]]?.position} />
+                  <RotPlayer num={rotations?.home?.[5]} zone="R6" pos={roster?.home?.[rotations?.home?.[5]]?.position} />
+                  <RotPlayer num={rotations?.home?.[0]} zone="R1" pos={roster?.home?.[rotations?.home?.[0]]?.position} isServer={currentServe === 'home'} />
                 </div>
               </div>
             )}
             {showAway && (
               <div className="bg-rose-950/20 p-2 rounded-xl border border-rose-900/30">
                 <span className="text-[10px] font-black text-rose-400 block mb-1.5 tracking-wider uppercase text-center bg-rose-900/40 py-1 rounded">
-                  {lang === 'en' ? `${teamNames.away} Rotation` : `ตำแหน่งการยืน ${teamNames.away}`}
+                  {lang === 'en' ? `${teamNames?.away} Rotation` : `ตำแหน่งการยืน ${teamNames?.away}`}
                 </span>
                 <div className="grid grid-cols-3 gap-1">
-                  <RotPlayer num={rotations.away[3]} zone="R4" pos={roster.away[rotations.away[3]]?.position} />
-                  <RotPlayer num={rotations.away[2]} zone="R3" pos={roster.away[rotations.away[2]]?.position} />
-                  <RotPlayer num={rotations.away[1]} zone="R2" pos={roster.away[rotations.away[1]]?.position} />
-                  <RotPlayer num={rotations.away[4]} zone="R5" pos={roster.away[rotations.away[4]]?.position} />
-                  <RotPlayer num={rotations.away[5]} zone="R6" pos={roster.away[rotations.away[5]]?.position} />
-                  <RotPlayer num={rotations.away[0]} zone="R1" pos={roster.away[rotations.away[0]]?.position} isServer={currentServe === 'away'} />
+                  <RotPlayer num={rotations?.away?.[3]} zone="R4" pos={roster?.away?.[rotations?.away?.[3]]?.position} />
+                  <RotPlayer num={rotations?.away?.[2]} zone="R3" pos={roster?.away?.[rotations?.away?.[2]]?.position} />
+                  <RotPlayer num={rotations?.away?.[1]} zone="R2" pos={roster?.away?.[rotations?.away?.[1]]?.position} />
+                  <RotPlayer num={rotations?.away?.[4]} zone="R5" pos={roster?.away?.[rotations?.away?.[4]]?.position} />
+                  <RotPlayer num={rotations?.away?.[5]} zone="R6" pos={roster?.away?.[rotations?.away?.[5]]?.position} />
+                  <RotPlayer num={rotations?.away?.[0]} zone="R1" pos={roster?.away?.[rotations?.away?.[0]]?.position} isServer={currentServe === 'away'} />
                 </div>
               </div>
             )}
@@ -4931,7 +4953,14 @@ export default function App() {
   const [role, setRole] = useState(ROLES.UNASSIGNED);
   const [roomId, setRoomId] = useState('');
   const [activeRoom, setActiveRoom] = useState(null); 
-  const [matchData, setMatchData] = useState(INITIAL_MATCH_STATE);
+  const [matchData, rawSetMatchData] = useState(ensureValidMatchData(INITIAL_MATCH_STATE));
+  const setMatchData = (data: any) => {
+    if (typeof data === 'function') {
+      rawSetMatchData((prev: any) => ensureValidMatchData(data(prev)));
+    } else {
+      rawSetMatchData(ensureValidMatchData(data));
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -5040,9 +5069,17 @@ export default function App() {
         const fetchFontBase64 = async (url: string) => {
           const res = await fetch(url);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const buffer = await res.arrayBuffer();
-          const binary = new Uint8Array(buffer).reduce((acc, byte) => acc + String.fromCharCode(byte), '');
-          return btoa(binary);
+          const blob = await res.blob();
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64data = reader.result as string;
+              const base64 = base64data.split(',')[1];
+              resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
         };
 
         const [regular, bold] = await Promise.all([
@@ -6509,9 +6546,18 @@ export default function App() {
     // Helper: Async fetch font from url and return base64
     const fetchFontBase64 = async (url) => {
       const res = await fetch(url);
-      const buffer = await res.arrayBuffer();
-      const binary = new Uint8Array(buffer).reduce((acc, byte) => acc + String.fromCharCode(byte), '');
-      return btoa(binary);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          const base64 = base64data.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     };
 
     if (cachedFonts.regular && cachedFonts.bold) {
