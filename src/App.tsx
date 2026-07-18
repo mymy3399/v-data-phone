@@ -80,20 +80,20 @@ function RotationAnalysisView({ team, events, teamName, isHome }) {
                 <span className="text-rose-400 font-extrabold">-{errors}</span>
               </div>
 
-              <div className="w-full bg-slate-950 h-2 rounded-full mt-2.5 overflow-hidden flex shrink-0 border border-slate-800">
-                 <div style={{ width: `${winPercent}%` }} className="bg-emerald-500 h-full transition-all duration-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
+              <div className="w-full bg-slate-950 h-2 rounded-full mt-2.5 overflow-hidden flex shrink-0 border border-slate-800 box-border">
+                 <div style={{ width: `${Math.min(100, Math.max(0, winPercent))}%` }} className="bg-emerald-500 h-full rounded-full transition-all duration-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
               </div>
               <div className="w-full flex items-center justify-between gap-1 mt-1.5 shrink-0">
                 <span className="text-[8px] text-slate-500 uppercase tracking-wide truncate min-w-0 text-left">{t('rotationWinRateLabel')}</span>
-                <span className="text-[10px] sm:text-[12px] text-emerald-400 font-black shrink-0">{winPercent}%</span>
+                <span className="text-[10px] sm:text-[12px] text-emerald-400 font-black shrink-0 w-[30px] text-right">{winPercent}%</span>
               </div>
 
-              <div className="w-full bg-slate-950 h-1.5 rounded-full mt-1.5 overflow-hidden flex shrink-0 border border-slate-800">
-                 <div style={{ width: `${sharePercent}%` }} className="bg-sky-500 h-full transition-all duration-500 shadow-[0_0_5px_rgba(14,165,233,0.5)]"></div>
+              <div className="w-full bg-slate-950 h-1.5 rounded-full mt-1.5 overflow-hidden flex shrink-0 border border-slate-800 box-border">
+                 <div style={{ width: `${Math.min(100, Math.max(0, sharePercent))}%` }} className="bg-sky-500 h-full rounded-full transition-all duration-500 shadow-[0_0_5px_rgba(14,165,233,0.5)]"></div>
               </div>
               <div className="w-full flex items-center justify-between gap-1 mt-1 shrink-0">
                 <span className="text-[8px] text-slate-500 uppercase tracking-wide truncate min-w-0 text-left">{t('rotationShareLabel')}</span>
-                <span className="text-[10px] sm:text-[12px] text-sky-400 font-black shrink-0">{sharePercent}%</span>
+                <span className="text-[10px] sm:text-[12px] text-sky-400 font-black shrink-0 w-[30px] text-right">{sharePercent}%</span>
               </div>
             </div>
           );
