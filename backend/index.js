@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const app = express();
 const server = http.createServer(app);
@@ -17,11 +18,30 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/volleydata';
 
+const ADMIN_PIN = process.env.ADMIN_PIN || '062026';
+if (!process.env.ADMIN_PIN) {
+  console.warn('WARNING: ADMIN_PIN env var not set. Falling back to the insecure default PIN — set ADMIN_PIN in your deployment environment.');
+}
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const hashPassword = (password) => {
+// Legacy hashing, kept only to verify passwords created before the bcrypt migration.
+const hashPasswordLegacy = (password) => {
   return crypto.createHash('sha256').update(password).digest('hex');
+};
+
+const isBcryptHash = (hash) => typeof hash === 'string' && /^\$2[aby]?\$/.test(hash);
+
+const hashPassword = (password) => bcrypt.hash(password, 10);
+
+// Verifies against bcrypt hashes, falling back to the legacy SHA-256 scheme
+// for accounts that haven't logged in since the migration.
+const verifyPassword = async (password, storedHash) => {
+  if (isBcryptHash(storedHash)) {
+    return bcrypt.compare(password, storedHash);
+  }
+  return hashPasswordLegacy(password) === storedHash;
 };
 
 const parseExpiryDate = (dateVal) => {
@@ -92,7 +112,7 @@ const seedDefaultUser = async () => {
     if (!adminExists) {
       const defaultAdmin = new User({
         username: 'vbdata01',
-        password: hashPassword('vddata01th'),
+        password: await hashPassword('vddata01th'),
         expiresAt: null,
         isAdmin: true
       });
@@ -108,7 +128,7 @@ const seedDefaultUser = async () => {
     if (!newAdminExists) {
       const newAdmin = new User({
         username: 'vdata2026',
-        password: hashPassword('062026'),
+        password: await hashPassword('062026'),
         expiresAt: null,
         isAdmin: true
       });
@@ -142,10 +162,16 @@ app.post('/api/auth/login', async (req, res) => {
   }
   try {
     const user = await User.findOne({ username });
-    if (!user || user.password !== hashPassword(password)) {
+    if (!user || !(await verifyPassword(password, user.password))) {
       return res.status(400).json({ error: 'Username หรือ Password ไม่ถูกต้อง' });
     }
-    
+
+    // Transparently upgrade legacy SHA-256 hashes to bcrypt on next successful login
+    if (!isBcryptHash(user.password)) {
+      user.password = await hashPassword(password);
+      await user.save();
+    }
+
     // Check if account has expired
     if (user.expiresAt && new Date() > new Date(user.expiresAt)) {
       return res.status(403).json({ error: 'บัญชีนี้หมดอายุการใช้งานแล้ว กรุณาติดต่อผู้ดูแลระบบ' });
@@ -170,7 +196,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
     const user = new User({
       username,
-      password: hashPassword(password),
+      password: await hashPassword(password),
       expiresAt: null
     });
     await user.save();
@@ -183,7 +209,7 @@ app.post('/api/auth/register', async (req, res) => {
 // 3. Get all users (Admin only)
 app.get('/api/auth/users', async (req, res) => {
   const adminPin = req.headers['x-admin-pin'];
-  if (adminPin !== '062026') {
+  if (adminPin !== ADMIN_PIN) {
     return res.status(401).json({ error: 'ไม่มีสิทธิ์ในการเข้าถึงข้อมูล' });
   }
   try {
@@ -197,7 +223,7 @@ app.get('/api/auth/users', async (req, res) => {
 // 4. Create user (Admin only)
 app.post('/api/auth/users', async (req, res) => {
   const adminPin = req.headers['x-admin-pin'];
-  if (adminPin !== '062026') {
+  if (adminPin !== ADMIN_PIN) {
     return res.status(401).json({ error: 'ไม่มีสิทธิ์ในการสร้างผู้ใช้' });
   }
   const { username, password, expiresAt } = req.body;
@@ -211,7 +237,7 @@ app.post('/api/auth/users', async (req, res) => {
     }
     const newUser = new User({
       username,
-      password: hashPassword(password),
+      password: await hashPassword(password),
       expiresAt: parseExpiryDate(expiresAt)
     });
     await newUser.save();
@@ -224,7 +250,7 @@ app.post('/api/auth/users', async (req, res) => {
 // 5. Update user expiry (Admin only)
 app.put('/api/auth/users/:id/expiry', async (req, res) => {
   const adminPin = req.headers['x-admin-pin'];
-  if (adminPin !== '062026') {
+  if (adminPin !== ADMIN_PIN) {
     return res.status(401).json({ error: 'ไม่มีสิทธิ์ในการแก้ไขข้อมูล' });
   }
   const { expiresAt } = req.body;
@@ -239,7 +265,7 @@ app.put('/api/auth/users/:id/expiry', async (req, res) => {
 // Toggle user admin status (Admin only)
 app.put('/api/auth/users/:id/role', async (req, res) => {
   const adminPin = req.headers['x-admin-pin'];
-  if (adminPin !== '062026') {
+  if (adminPin !== ADMIN_PIN) {
     return res.status(401).json({ error: 'ไม่มีสิทธิ์ในการแก้ไขข้อมูล' });
   }
   const { isAdmin } = req.body;
@@ -254,7 +280,7 @@ app.put('/api/auth/users/:id/role', async (req, res) => {
 // 6. Reset user password (Admin only)
 app.put('/api/auth/users/:id/password', async (req, res) => {
   const adminPin = req.headers['x-admin-pin'];
-  if (adminPin !== '062026') {
+  if (adminPin !== ADMIN_PIN) {
     return res.status(401).json({ error: 'ไม่มีสิทธิ์ในการแก้ไขข้อมูล' });
   }
   const { password } = req.body;
@@ -262,7 +288,7 @@ app.put('/api/auth/users/:id/password', async (req, res) => {
     return res.status(400).json({ error: 'กรุณากรอกรหัสผ่านใหม่' });
   }
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, { password: hashPassword(password) }, { new: true });
+    const user = await User.findByIdAndUpdate(req.params.id, { password: await hashPassword(password) }, { new: true });
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -272,7 +298,7 @@ app.put('/api/auth/users/:id/password', async (req, res) => {
 // 7. Delete user (Admin only)
 app.delete('/api/auth/users/:id', async (req, res) => {
   const adminPin = req.headers['x-admin-pin'];
-  if (adminPin !== '062026') {
+  if (adminPin !== ADMIN_PIN) {
     return res.status(401).json({ error: 'ไม่มีสิทธิ์ในการลบข้อมูล' });
   }
   try {
