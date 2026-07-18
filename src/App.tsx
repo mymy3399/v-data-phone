@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { io } from 'socket.io-client';
 import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './translations';
-import { getSetterZone, parseStoredJson, rotateLineup, unrotateLineup, checkSetEnd } from './utils/appState';
+import { getSetterZone, parseStoredJson, rotateLineup, unrotateLineup, checkSetEnd, computeRotationStats } from './utils/appState';
 import {
   ClipboardList, MonitorPlay, Check, X, Undo2, Settings,
   Users, RotateCcw, AlertCircle, BarChart3, Swords, LogIn, Plus, Copy, CloudLightning, Download, BookOpen, ChevronRight, Link2, Trophy, PlayCircle, ChevronLeft,
@@ -39,6 +39,11 @@ function RotationAnalysisView({ team, events, teamName, isHome }) {
   const themeBorder = isHome ? 'border-indigo-900/40 bg-indigo-950/20' : 'border-rose-900/40 bg-rose-950/20';
   const themeText = isHome ? 'text-indigo-400 bg-indigo-950/60' : 'text-rose-400 bg-rose-950/60';
 
+  const statsByZone = useMemo(() => {
+    const stats = computeRotationStats(events, team);
+    return new Map(stats.map(s => [s.zone, s]));
+  }, [events, team]);
+
   return (
     <div className={`rounded-xl p-3 border ${themeBorder} shadow-lg flex flex-col min-h-0 w-full h-full`}>
       <h3 className={`text-[11px] sm:text-[12px] font-black px-3 py-2 rounded-lg mb-3 uppercase tracking-wider text-center border ${themeText} shrink-0 shadow-sm`}>
@@ -46,24 +51,19 @@ function RotationAnalysisView({ team, events, teamName, isHome }) {
       </h3>
       <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 flex-1 overflow-y-auto custom-scrollbar p-1">
         {[1, 6, 5, 2, 3, 4].map(zone => {
-          const rotEvents = events.filter(e => e.team === team && (team === 'home' ? e.setterZoneHome === zone : e.setterZoneAway === zone));
-          
-          const total = rotEvents.length;
-          const wins = rotEvents.filter(e => e.eval === '#' || e.eval === '+').length;
-          const errors = rotEvents.filter(e => e.eval === '=' || e.eval === '/').length;
-          const winPercent = total > 0 ? ((wins / total) * 100).toFixed(0) : 0;
+          const { total, wins, errors, winPercent, sharePercent } = statsByZone.get(zone);
 
           return (
             <div key={zone} className="bg-slate-900 border border-slate-700 rounded-xl p-3 flex flex-col items-center justify-between shadow-md relative text-center min-h-[160px] sm:min-h-[180px] hover:border-slate-500 transition-colors">
               <span className="text-[9px] sm:text-[10px] font-black text-amber-400 bg-slate-950 px-3 py-1 rounded-md border border-slate-800 shrink-0 mb-2 shadow-inner">
                 {t('setterAtZone', { zone })}
               </span>
-              
+
               {/* คอร์ทจำลองจิ๋วขยายขนาดใหญ่ขึ้นมาก เพื่อให้อ่านง่าย */}
               <div className="w-[100px] h-[75px] sm:w-[120px] sm:h-[90px] grid grid-cols-3 grid-rows-2 gap-[1.5px] bg-slate-950 border border-slate-600/60 p-[1.5px] rounded-md my-2 shrink-0">
                 {[4, 3, 2, 5, 6, 1].map(z => (
-                  <div 
-                    key={z} 
+                  <div
+                    key={z}
                     className={`flex items-center justify-center text-[9px] sm:text-[11px] font-black rounded-[3px] transition-all
                       ${z === zone ? 'bg-amber-500 text-slate-900 font-extrabold shadow-inner scale-105 z-10' : 'bg-slate-800 text-slate-400'}
                     `}
@@ -79,11 +79,22 @@ function RotationAnalysisView({ team, events, teamName, isHome }) {
                 <span className="text-[9px] sm:text-[10px] text-slate-500">({total})</span>
                 <span className="text-rose-400 font-extrabold">-{errors}</span>
               </div>
-              
+
               <div className="w-full bg-slate-950 h-2 rounded-full mt-2.5 overflow-hidden flex shrink-0 border border-slate-800">
                  <div style={{ width: `${winPercent}%` }} className="bg-emerald-500 h-full transition-all duration-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
               </div>
-              <span className="text-[10px] sm:text-[12px] text-emerald-400 font-black mt-1.5 shrink-0">{winPercent}%</span>
+              <div className="w-full flex items-center justify-between mt-1.5 shrink-0">
+                <span className="text-[8px] text-slate-500 uppercase tracking-wide">{t('rotationWinRateLabel')}</span>
+                <span className="text-[10px] sm:text-[12px] text-emerald-400 font-black">{winPercent}%</span>
+              </div>
+
+              <div className="w-full bg-slate-950 h-1.5 rounded-full mt-1.5 overflow-hidden flex shrink-0 border border-slate-800">
+                 <div style={{ width: `${sharePercent}%` }} className="bg-sky-500 h-full transition-all duration-500 shadow-[0_0_5px_rgba(14,165,233,0.5)]"></div>
+              </div>
+              <div className="w-full flex items-center justify-between mt-1 shrink-0">
+                <span className="text-[8px] text-slate-500 uppercase tracking-wide">{t('rotationShareLabel')}</span>
+                <span className="text-[10px] sm:text-[12px] text-sky-400 font-black">{sharePercent}%</span>
+              </div>
             </div>
           );
         })}
@@ -4264,9 +4275,9 @@ function TrackerView({
           {/* Explanation Legend */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 mt-1 shadow-sm shrink-0 flex items-center">
             <span className="text-[10px] sm:text-[11px] text-slate-400 font-semibold leading-relaxed">
-              {lang === 'en' 
-                ? '💡 Rotation Legend: High % = Strong rotation | 🟥 Red border = Critical rotation (adjust needed)'
-                : '💡 วิธีอ่าน: เปอร์เซ็นต์สูง = หน้าเข้าทำดี | 🟥 กรอบสีแดง = หน้าวิกฤตที่เสียแต้มต่อเนื่อง (ควรแก้เกม)'}
+              {lang === 'en'
+                ? '💡 Rotation Legend: 🟩 Win Rate = success rate within that rotation only (each bar independent, does not add up to 100%) | 🟦 Share of Play = this rotation\'s share of all logged actions (adds up to ~100% across the 6 rotations)'
+                : '💡 วิธีอ่าน: 🟩 อัตราสำเร็จ = อัตราความสำเร็จเฉพาะหน้าเซตนั้น (แต่ละหน้าคำนวณแยกกัน รวมกันไม่จำเป็นต้องได้ 100%) | 🟦 สัดส่วนหน้าเซต = สัดส่วนจำนวนเหตุการณ์ของหน้าเซตนี้เทียบกับทั้งหมด (รวมทุกหน้าจะได้ประมาณ 100%)'}
             </span>
           </div>
         </div>

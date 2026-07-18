@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ensureValidMatchData, getSetterZone, parseStoredJson, rotateLineup, unrotateLineup, checkSetEnd } from './appState';
+import { ensureValidMatchData, getSetterZone, parseStoredJson, rotateLineup, unrotateLineup, checkSetEnd, computeRotationStats } from './appState';
 
 describe('ensureValidMatchData', () => {
   const initialState = {
@@ -77,6 +77,48 @@ describe('unrotateLineup', () => {
   it('is the exact inverse of rotateLineup, for undoing a side-out rotation', () => {
     const original = ['1', '2', '3', '4', '5', '6'];
     expect(unrotateLineup(rotateLineup(original))).toEqual(original);
+  });
+});
+
+describe('computeRotationStats', () => {
+  const events = [
+    // Zone 1: 3 home events, 2 wins -> winPercent 67%
+    { team: 'home', setterZoneHome: 1, eval: '#' },
+    { team: 'home', setterZoneHome: 1, eval: '+' },
+    { team: 'home', setterZoneHome: 1, eval: '=' },
+    // Zone 2: 1 home event, 0 wins -> winPercent 0%
+    { team: 'home', setterZoneHome: 2, eval: '=' },
+    // Away events should never affect home's stats
+    { team: 'away', setterZoneAway: 1, eval: '#' }
+  ];
+
+  it('computes an independent win rate per zone that does not need to sum to 100%', () => {
+    const stats = computeRotationStats(events, 'home');
+    const zone1 = stats.find(z => z.zone === 1);
+    const zone2 = stats.find(z => z.zone === 2);
+    expect(zone1.winPercent).toBe(67);
+    expect(zone2.winPercent).toBe(0);
+  });
+
+  it('computes a share-of-play percentage that sums to ~100% across all zones', () => {
+    const stats = computeRotationStats(events, 'home');
+    const totalShare = stats.reduce((sum, z) => sum + z.sharePercent, 0);
+    expect(totalShare).toBeGreaterThanOrEqual(99);
+    expect(totalShare).toBeLessThanOrEqual(101);
+    expect(stats.find(z => z.zone === 1).sharePercent).toBe(75); // 3 of 4 home events
+    expect(stats.find(z => z.zone === 2).sharePercent).toBe(25); // 1 of 4 home events
+  });
+
+  it('only counts events belonging to the requested team', () => {
+    const stats = computeRotationStats(events, 'home');
+    const zonesWithEvents = stats.filter(z => z.total > 0).map(z => z.zone);
+    expect(zonesWithEvents).toEqual([1, 2]); // not zone 1 from the away event
+  });
+
+  it('returns all zeroes for a zone with no events', () => {
+    const stats = computeRotationStats(events, 'home');
+    const emptyZone = stats.find(z => z.zone === 6);
+    expect(emptyZone).toEqual({ zone: 6, total: 0, wins: 0, errors: 0, winPercent: 0, sharePercent: 0 });
   });
 });
 

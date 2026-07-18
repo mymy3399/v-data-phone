@@ -90,3 +90,36 @@ export const checkSetEnd = (homeScore: number, awayScore: number, currentSet: nu
   if (awayScore >= targetScore && awayScore - homeScore >= 2) return 'away';
   return null;
 };
+
+export interface RotationZoneStat {
+  zone: number;
+  total: number;
+  wins: number;
+  errors: number;
+  // Success rate WITHIN this rotation (wins / this zone's total). Independent per zone - does not sum to 100%.
+  winPercent: number;
+  // This zone's share of the team's total logged events across all 6 rotations. Sums to ~100% across zones.
+  sharePercent: number;
+}
+
+// Per-rotation (setter zone R1-R6) breakdown for the coach dashboard's Rotation Analysis tab.
+export const computeRotationStats = (
+  events: Array<{ team: string; setterZoneHome?: number | null; setterZoneAway?: number | null; eval?: string }>,
+  team: 'home' | 'away'
+): RotationZoneStat[] => {
+  const zoneField = team === 'home' ? 'setterZoneHome' : 'setterZoneAway';
+  const raw = [1, 2, 3, 4, 5, 6].map(zone => {
+    const zoneEvents = (events || []).filter(e => e.team === team && e[zoneField] === zone);
+    const total = zoneEvents.length;
+    const wins = zoneEvents.filter(e => e.eval === '#' || e.eval === '+').length;
+    const errors = zoneEvents.filter(e => e.eval === '=' || e.eval === '/').length;
+    return { zone, total, wins, errors };
+  });
+  const grandTotal = raw.reduce((sum, z) => sum + z.total, 0);
+
+  return raw.map(z => ({
+    ...z,
+    winPercent: z.total > 0 ? Math.round((z.wins / z.total) * 100) : 0,
+    sharePercent: grandTotal > 0 ? Math.round((z.total / grandTotal) * 100) : 0
+  }));
+};
