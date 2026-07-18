@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
+import React, { useState, useEffect, useMemo, createContext, useContext, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './translations';
 import { jsPDF } from 'jspdf';
@@ -61,6 +61,34 @@ const OPP_COURT_ZONES = [
 ];
 
 const POSITIONS = ['S', 'OH', 'OP', 'MB', 'L'];
+
+const DEFAULT_KEY_MAP = {
+  player_r1: '1',
+  player_r2: '2',
+  player_r3: '3',
+  player_r4: '4',
+  player_r5: '5',
+  player_r6: '6',
+  player_libero: 'l',
+
+  skill_serve: 'q',
+  skill_receive: 'w',
+  skill_set: 'e',
+  skill_attack: 'r',
+  skill_block: 't',
+  skill_dig: 'y',
+
+  eval_perfect: 'a',
+  eval_good: 's',
+  eval_okay: 'd',
+  eval_poor: 'f',
+  eval_error: 'g',
+  eval_blocked: 'h',
+
+  action_undo: 'z',
+  action_timeout: 'x',
+  action_foul: 'c'
+};
 
 const INITIAL_MATCH_STATE = {
   status: 'ongoing',
@@ -4964,6 +4992,11 @@ export default function App() {
       rawSetMatchData(ensureValidMatchDataLocal(data));
     }
   };
+
+  const matchDataRef = useRef(matchData);
+  useEffect(() => {
+    matchDataRef.current = matchData;
+  }, [matchData]);
   const [loading, setLoading] = useState(true);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -5055,6 +5088,20 @@ export default function App() {
     return saved ? parseFloat(saved) : 1.0;
   });
   const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
+  const [isKeymapSettingsOpen, setIsKeymapSettingsOpen] = useState(false);
+  const [conflictData, setConflictData] = useState<{ local: any; incoming: any } | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   const [cachedFonts, setCachedFonts] = useState<{ regular: string | null; bold: string | null }>({
     regular: null,
     bold: null
@@ -6343,6 +6390,681 @@ export default function App() {
   };
 
   const handleExportPDF = () => {
+    const t = (key: string, params?: Record<string, string | number>) => {
+      let val = (translations[lang] as any)[key] || (translations['th'] as any)[key] || key;
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          val = val.replace(`{${k}}`, String(v));
+        });
+      }
+      return val;
+    };
+
+    const teamNames = matchData.teamNames || { home: 'HOME', away: 'AWAY' };
+    const matchInfo = matchData.matchInfo || {};
+    const events = matchData.events || [];
+    const sets = matchData.setScores || [];
+
+    const metaTournament = matchInfo.tournament || '-';
+    const metaVenue = matchInfo.venue || '-';
+    const metaDate = matchInfo.matchDate || '-';
+    const metaTime = matchInfo.matchTime || '-';
+    const metaGender = matchInfo.gender || '-';
+    const metaAge = matchInfo.ageGroup || '-';
+    const metaLevel = matchInfo.compLevel || '-';
+
+    const generateRadarChartSVG = (teamKey: 'home' | 'away') => {
+      const size = 260;
+      const center = size / 2;
+      const maxRadius = center - 35;
+      const zones = [1, 2, 3, 4, 5, 6];
+      const getAngle = (i: number) => (i * 2 * Math.PI) / 6 - Math.PI / 2;
+
+      const getMetrics = (zone: number) => {
+        const rotEvents = events.filter(e => e.team === teamKey && (teamKey === 'home' ? e.setterZoneHome === zone : e.setterZoneAway === zone));
+        const total = rotEvents.length;
+
+        const wins = rotEvents.filter(e => e.eval === '#' || e.eval === '+').length;
+        const winRate = total > 0 ? (wins / total) * 100 : 0;
+
+        const recEvents = rotEvents.filter(e => e.skill === 'receive');
+        const passQuality = recEvents.length > 0 
+          ? recEvents.reduce((acc, e) => acc + (e.eval === '#' ? 100 : e.eval === '+' ? 75 : e.eval === '!' ? 50 : e.eval === '-' ? 25 : 0), 0) / recEvents.length
+          : 0;
+
+        const attEvents = rotEvents.filter(e => e.skill === 'attack');
+        const attKills = attEvents.filter(e => e.eval === '#').length;
+        const attackComp = attEvents.length > 0 ? (attKills / attEvents.length) * 100 : 0;
+
+        return { winRate, passQuality, attackComp };
+      };
+
+      const zoneData = zones.map(z => ({ zone: z, ...getMetrics(z) }));
+
+      const getPolygonPoints = (key: 'winRate' | 'passQuality' | 'attackComp') => {
+        return zoneData.map((data, i) => {
+          const angle = getAngle(i);
+          const val = data[key];
+          const radius = (val / 100) * maxRadius;
+          const x = center + radius * Math.cos(angle);
+          const y = center + radius * Math.sin(angle);
+          return `${x},${y}`;
+        }).join(' ');
+      };
+
+      const rings = [20, 40, 60, 80, 100];
+
+      let svgHtml = `<svg width="${size}" height="${size}" class="radar-chart" style="overflow: visible;">`;
+      
+      rings.forEach(ring => {
+        const radius = (ring / 100) * maxRadius;
+        const points = zones.map((_, i) => {
+          const angle = getAngle(i);
+          const x = center + radius * Math.cos(angle);
+          const y = center + radius * Math.sin(angle);
+          return `${x},${y}`;
+        }).join(' ');
+        svgHtml += `
+          <polygon points="${points}" fill="none" stroke="#e2e8f0" stroke-width="0.75" stroke-dasharray="2 2" />
+          <text x="${center}" y="${center - radius + 8}" fill="#94a3b8" font-size="7" font-weight="bold" text-anchor="middle">${ring}%</text>
+        `;
+      });
+
+      zones.forEach((_, i) => {
+        const angle = getAngle(i);
+        const x2 = center + maxRadius * Math.cos(angle);
+        const y2 = center + maxRadius * Math.sin(angle);
+        const lx = center + (maxRadius + 15) * Math.cos(angle);
+        const ly = center + (maxRadius + 15) * Math.sin(angle) + 3;
+        svgHtml += `
+          <line x1="${center}" y1="${center}" x2="${x2}" y2="${y2}" stroke="#cbd5e1" stroke-width="1" />
+          <text x="${lx}" y="${ly}" fill="#475569" font-size="10" font-weight="bold" text-anchor="middle">R${zones[i]}</text>
+        `;
+      });
+
+      svgHtml += `
+        <polygon points="${getPolygonPoints('winRate')}" fill="rgba(16, 185, 129, 0.15)" stroke="rgb(16, 185, 129)" stroke-width="2" />
+        <polygon points="${getPolygonPoints('passQuality')}" fill="rgba(99, 102, 241, 0.15)" stroke="rgb(99, 102, 241)" stroke-width="2" />
+        <polygon points="${getPolygonPoints('attackComp')}" fill="rgba(244, 63, 94, 0.15)" stroke="rgb(244, 63, 94)" stroke-width="2" />
+      `;
+
+      zones.forEach((_, i) => {
+        const angle = getAngle(i);
+        const drawMarker = (val: number, color: string) => {
+          const radius = (val / 100) * maxRadius;
+          const x = center + radius * Math.cos(angle);
+          const y = center + radius * Math.sin(angle);
+          return `<circle cx="${x}" cy="${y}" r="3" fill="${color}" stroke="#fff" stroke-width="1" />`;
+        };
+        const metrics = zoneData[i];
+        svgHtml += drawMarker(metrics.winRate, 'rgb(16, 185, 129)');
+        svgHtml += drawMarker(metrics.passQuality, 'rgb(99, 102, 241)');
+        svgHtml += drawMarker(metrics.attackComp, 'rgb(244, 63, 94)');
+      });
+
+      svgHtml += `</svg>`;
+      return svgHtml;
+    };
+
+    const generateHeatmapHTML = (teamKey: 'home' | 'away') => {
+      const tEvents = events.filter(e => e.team === teamKey);
+      const strengths = Array(7).fill(0);
+      const weaknesses = Array(7).fill(0);
+
+      tEvents.forEach(evt => {
+        if (evt.endZone >= 1 && evt.endZone <= 6) {
+          const isSuccess = evt.eval === '#' || evt.eval === '+';
+          const isError = evt.eval === '=' || evt.eval === '/';
+          if (isSuccess) strengths[evt.endZone]++;
+          if (isError) weaknesses[evt.endZone]++;
+        }
+      });
+
+      const zones = [
+        [1, 6, 5],
+        [2, 3, 4]
+      ];
+
+      let gridHtml = `<div class="heatmap-container">`;
+      zones.forEach(row => {
+        row.forEach(z => {
+          const s = strengths[z] || 0;
+          const w = weaknesses[z] || 0;
+          const sum = s + w;
+          let bgClass = 'bg-slate-50';
+          if (sum > 0) {
+            if (s >= w) {
+              bgClass = s >= 3 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            } else {
+              bgClass = w >= 3 ? 'bg-rose-100 text-rose-800 border-rose-300' : 'bg-rose-50 text-rose-700 border-rose-200';
+            }
+          }
+          gridHtml += `
+            <div class="heatmap-cell ${bgClass}">
+              <span class="cell-label">R${z}</span>
+              <div class="cell-stats">
+                <span class="stat-plus">+${s}</span>
+                <span class="stat-minus">-${w}</span>
+              </div>
+            </div>
+          `;
+        });
+      });
+      gridHtml += `</div>`;
+      return gridHtml;
+    };
+
+    const homeStatsRows = SKILLS.map(skill => {
+      const sEvents = events.filter(e => e.team === 'home' && e.skill === skill.id);
+      const total = sEvents.length;
+      const perfect = sEvents.filter(e => e.eval === '#').length;
+      const good = sEvents.filter(e => e.eval === '+').length;
+      const error = sEvents.filter(e => e.eval === '=').length;
+      const blocked = sEvents.filter(e => e.eval === '/').length;
+      
+      const effPercent = total > 0 ? (((perfect + good) / total) * 100).toFixed(0) : '0';
+      const errPercent = total > 0 ? (((error + blocked) / total) * 100).toFixed(0) : '0';
+
+      return `
+        <tr>
+          <td>${getLocalizedSkillLabel(skill.id, lang)}</td>
+          <td class="text-center font-mono">${total}</td>
+          <td class="text-center text-emerald-600 font-bold">${effPercent}%</td>
+          <td class="text-center text-rose-600 font-bold">${errPercent}%</td>
+        </tr>
+      `;
+    }).join('');
+
+    const awayStatsRows = SKILLS.map(skill => {
+      const sEvents = events.filter(e => e.team === 'away' && e.skill === skill.id);
+      const total = sEvents.length;
+      const perfect = sEvents.filter(e => e.eval === '#').length;
+      const good = sEvents.filter(e => e.eval === '+').length;
+      const error = sEvents.filter(e => e.eval === '=').length;
+      const blocked = sEvents.filter(e => e.eval === '/').length;
+      
+      const effPercent = total > 0 ? (((perfect + good) / total) * 100).toFixed(0) : '0';
+      const errPercent = total > 0 ? (((error + blocked) / total) * 100).toFixed(0) : '0';
+
+      return `
+        <tr>
+          <td>${getLocalizedSkillLabel(skill.id, lang)}</td>
+          <td class="text-center font-mono">${total}</td>
+          <td class="text-center text-emerald-600 font-bold">${effPercent}%</td>
+          <td class="text-center text-rose-600 font-bold">${errPercent}%</td>
+        </tr>
+      `;
+    }).join('');
+
+    const generatePlayerRows = (teamKey: 'home' | 'away') => {
+      const roster = matchData.roster?.[teamKey] || {};
+      return Object.entries(roster).map(([num, details]: [string, any]) => {
+        const pEvents = events.filter(e => e.team === teamKey && e.player === num);
+        const total = pEvents.length;
+        const perfect = pEvents.filter(e => e.eval === '#').length;
+        const good = pEvents.filter(e => e.eval === '+').length;
+        const error = pEvents.filter(e => e.eval === '=').length;
+        const blocked = pEvents.filter(e => e.eval === '/').length;
+        
+        const effPercent = total > 0 ? (((perfect + good) / total) * 100).toFixed(0) : '0';
+        const errPercent = total > 0 ? (((error + blocked) / total) * 100).toFixed(0) : '0';
+        const ratio = total > 0 ? `+${effPercent}% / -${errPercent}%` : '-';
+
+        const skillCounts = SKILLS.map(s => {
+          const count = pEvents.filter(e => e.skill === s.id).length;
+          return count > 0 ? `<td class="text-center font-mono">${count}</td>` : `<td class="text-center text-slate-300">-</td>`;
+        }).join('');
+
+        return `
+          <tr>
+            <td class="text-center font-bold">${num}</td>
+            <td>${details.name || '-'}</td>
+            <td class="text-center font-bold">${details.position || '-'}</td>
+            <td class="text-center font-mono">${total}</td>
+            <td class="text-center font-mono text-[11px] font-bold">${ratio}</td>
+            ${skillCounts}
+          </tr>
+        `;
+      }).join('');
+    };
+
+    const eventLogsRows = events.map((e, idx) => {
+      const isHomeEvent = e.team === 'home';
+      const teamLabel = isHomeEvent ? teamNames.home : teamNames.away;
+      const skillName = getLocalizedSkillLabel(e.skill, lang);
+      const evalName = getLocalizedEvalLabel(e.eval, lang);
+      const badgeClass = isHomeEvent ? 'bg-indigo-100 text-indigo-800' : 'bg-rose-100 text-rose-800';
+      return `
+        <tr>
+          <td class="text-center font-mono text-slate-400">${idx + 1}</td>
+          <td><span class="badge ${badgeClass}">${teamLabel}</span></td>
+          <td class="text-center font-bold">#${e.player || '-'}</td>
+          <td>${skillName}</td>
+          <td class="text-center"><span class="eval-badge">${e.eval}</span> ${evalName}</td>
+          <td class="text-center font-mono text-slate-500">S${e.set || 1}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="utf-8">
+  <title>VolleyData Pro Match Report - ${teamNames.home} vs ${teamNames.away}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;850;900&family=Sarabun:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+    }
+    body {
+      font-family: 'Sarabun', 'Inter', sans-serif;
+      background-color: var(--slate-50);
+      color: var(--slate-900);
+      margin: 0;
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border: 1px solid var(--slate-200);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    }
+    .header-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--slate-200);
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--primary);
+      margin: 0;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: var(--slate-700);
+      margin: 4px 0 0 0;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      background: var(--slate-100);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .meta-item {
+      font-size: 12px;
+    }
+    .meta-label {
+      font-weight: bold;
+      color: var(--slate-700);
+      display: block;
+    }
+    .meta-val {
+      font-weight: 800;
+    }
+    .score-summary {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      font-size: 20px;
+      font-weight: 900;
+      margin: 24px 0;
+      padding: 16px;
+      border: 2px solid var(--slate-200);
+      border-radius: 12px;
+      background: var(--slate-50);
+    }
+    .team-score {
+      font-size: 32px;
+      color: var(--primary);
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .btn {
+      padding: 10px 18px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: var(--primary-hover);
+    }
+    .btn-secondary {
+      background: var(--slate-700);
+    }
+    .btn-secondary:hover {
+      background: var(--slate-800);
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 800;
+      border-left: 4px solid var(--primary);
+      padding-left: 8px;
+      margin: 32px 0 16px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid var(--slate-200);
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background-color: var(--slate-100);
+      font-weight: 800;
+    }
+    .text-center { text-align: center; }
+    .font-bold { font-weight: bold; }
+    .font-mono { font-family: monospace; }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+    }
+    .bg-indigo-100 { background-color: #e0e7ff; color: #4338ca; }
+    .bg-rose-100 { background-color: #ffe4e6; color: #be123c; }
+    .visuals-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .visual-card {
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--slate-50);
+    }
+    .visual-card h5 {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--slate-800);
+    }
+    .heatmap-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 3px;
+      width: 220px;
+      height: 150px;
+      background: var(--slate-200);
+      border: 2px solid var(--slate-700);
+      padding: 3px;
+      border-radius: 8px;
+    }
+    .heatmap-cell {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      border-radius: 4px;
+      border: 1px solid transparent;
+    }
+    .cell-label {
+      align-self: flex-end;
+      opacity: 0.6;
+    }
+    .cell-stats {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.1;
+    }
+    .stat-plus { color: #059669; font-weight: 800; }
+    .stat-minus { color: #dc2626; font-weight: 800; }
+    .bg-slate-50 { background-color: #f8fafc; }
+    .bg-emerald-50 { background-color: #ecfdf5; }
+    .bg-emerald-100 { background-color: #d1fae5; }
+    .bg-rose-50 { background-color: #fff5f5; }
+    .bg-rose-100 { background-color: #fee2e2; }
+    
+    .radar-chart {
+      margin: 8px 0;
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+      }
+      .controls {
+        display: none;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-banner">
+      <div>
+        <h1 class="title">${lang === 'en' ? 'VolleyData Pro - Match Analysis Report' : 'VolleyData Pro - รายงานผลวิเคราะห์สถิติการแข่งขัน'}</h1>
+        <p class="subtitle">${lang === 'en' ? 'Official analytical summary of match rotation and play statistics.' : 'เอกสารรายงานการแข่งขันอย่างเป็นทางการ'}</p>
+      </div>
+      <button class="btn no-print" onclick="window.print()">${lang === 'en' ? 'Print / PDF' : 'พิมพ์ / บันทึก PDF'}</button>
+    </div>
+
+    <!-- Metadata Section -->
+    <div class="meta-grid">
+      <div class="meta-item"><span class="meta-label">${lang === 'en' ? 'Tournament' : 'รายการแข่งขัน'}</span><span class="meta-val">${metaTournament}</span></div>
+      <div class="meta-item"><span class="meta-label">${lang === 'en' ? 'Venue' : 'สนามแข่งขัน'}</span><span class="meta-val">${metaVenue}</span></div>
+      <div class="meta-item"><span class="meta-label">${lang === 'en' ? 'Match Date' : 'วันที่แข่งขัน'}</span><span class="meta-val">${metaDate}</span></div>
+      <div class="meta-item"><span class="meta-label">${lang === 'en' ? 'Match Time' : 'เวลาแข่งขัน'}</span><span class="meta-val">${metaTime}</span></div>
+      <div class="meta-item"><span class="meta-label">${lang === 'en' ? 'Gender' : 'ประเภททีม'}</span><span class="meta-val">${metaGender}</span></div>
+      <div class="meta-item"><span class="meta-label">${lang === 'en' ? 'Age Group' : 'รุ่นอายุ'}</span><span class="meta-val">${metaAge}</span></div>
+      <div class="meta-item"><span class="meta-label">${lang === 'en' ? 'Comp Level' : 'ระดับการแข่งขัน'}</span><span class="meta-val">${metaLevel}</span></div>
+    </div>
+
+    <!-- Score Summary -->
+    <div class="score-summary">
+      <span class="font-bold">${teamNames.home}</span>
+      <span class="team-score">${sets.filter(s => s.home > s.away).length}</span>
+      <span>vs</span>
+      <span class="team-score">${sets.filter(s => s.away > s.home).length}</span>
+      <span class="font-bold">${teamNames.away}</span>
+    </div>
+
+    <!-- Toggle Controls -->
+    <div class="controls no-print">
+      <button class="btn btn-secondary" onclick="toggleSection('heatmap-sec')">${lang === 'en' ? 'Toggle Heatmaps' : 'แสดง/ซ่อน แผนภาพบุก'}</button>
+      <button class="btn btn-secondary" onclick="toggleSection('radar-sec')">${lang === 'en' ? 'Toggle Setter Radars' : 'แสดง/ซ่อน กราฟเรดาร์'}</button>
+      <button class="btn btn-secondary" onclick="toggleSection('logs-sec')">${lang === 'en' ? 'Toggle Event Logs' : 'แสดง/ซ่อน บันทึกคำสั่ง'}</button>
+    </div>
+
+    <!-- Team Overview Stats -->
+    <h2 class="section-title">${lang === 'en' ? 'Team Performance Overview' : 'สรุปผลงานระดับทีม'}</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+      <div>
+        <h4 style="margin: 0 0 8px 0; color: #4f46e5;">${teamNames.home} (HOME)</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>${lang === 'en' ? 'Skill' : 'ทักษะ'}</th>
+              <th class="text-center">${lang === 'en' ? 'Total' : 'จำนวน'}</th>
+              <th class="text-center">% Good</th>
+              <th class="text-center">% Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${homeStatsRows}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h4 style="margin: 0 0 8px 0; color: #e11d48;">${teamNames.away} (AWAY)</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>${lang === 'en' ? 'Skill' : 'ทักษะ'}</th>
+              <th class="text-center">${lang === 'en' ? 'Total' : 'จำนวน'}</th>
+              <th class="text-center">% Good</th>
+              <th class="text-center">% Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${awayStatsRows}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Visual Charts Sections -->
+    <div id="heatmap-sec">
+      <h2 class="section-title">${lang === 'en' ? 'Attack Target Zone Heatmaps' : 'วิเคราะห์จุดตกการทำคะแนน (Heatmaps)'}</h2>
+      <div class="visuals-layout">
+        <div class="visual-card">
+          <h5>${teamNames.home} (HOME) - Attack Target Zones</h5>
+          ${generateHeatmapHTML('home')}
+        </div>
+        <div class="visual-card">
+          <h5>${teamNames.away} (AWAY) - Attack Target Zones</h5>
+          ${generateHeatmapHTML('away')}
+        </div>
+      </div>
+    </div>
+
+    <div id="radar-sec">
+      <h2 class="section-title">${lang === 'en' ? 'Setter Rotation Performance Radar' : 'กราฟเรดาร์วิเคราะห์ประสิทธิภาพหน้าเซต (Setter Rotations)'}</h2>
+      <div class="visuals-layout">
+        <div class="visual-card">
+          <h5>${teamNames.home} (HOME) - Rotation Performance</h5>
+          ${generateRadarChartSVG('home')}
+        </div>
+        <div class="visual-card">
+          <h5>${teamNames.away} (AWAY) - Rotation Performance</h5>
+          ${generateRadarChartSVG('away')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Individual Player Stats -->
+    <h2 class="section-title">${lang === 'en' ? 'HOME Team Player Individual Performance' : 'ผลงานรายบุคคล - ทีมเหย้า'}</h2>
+    <table style="font-size: 11px;">
+      <thead>
+        <tr>
+          <th style="width: 30px;">No.</th>
+          <th>Player Name</th>
+          <th>Pos</th>
+          <th>Total</th>
+          <th>+/-% Ratio</th>
+          ${SKILLS.map(s => `<th>${s.label.split(' ')[0]}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${generatePlayerRows('home')}
+      </tbody>
+    </table>
+
+    <h2 class="section-title">${lang === 'en' ? 'AWAY Team Player Individual Performance' : 'ผลงานรายบุคคล - ทีมเยือน'}</h2>
+    <table style="font-size: 11px;">
+      <thead>
+        <tr>
+          <th style="width: 30px;">No.</th>
+          <th>Player Name</th>
+          <th>Pos</th>
+          <th>Total</th>
+          <th>+/-% Ratio</th>
+          ${SKILLS.map(s => `<th>${s.label.split(' ')[0]}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${generatePlayerRows('away')}
+      </tbody>
+    </table>
+
+    <!-- Event logs chronological list -->
+    <div id="logs-sec">
+      <h2 class="section-title">${lang === 'en' ? 'Chronological Action History' : 'ประวัติบันทึกการแข่งขันตามเวลาจริง (Match Play-by-Play Logs)'}</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 40px;" class="text-center">#</th>
+            <th>Team</th>
+            <th class="text-center">Player</th>
+            <th>Skill</th>
+            <th class="text-center">Evaluation</th>
+            <th class="text-center">Set</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${eventLogsRows}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function toggleSection(id) {
+      const el = document.getElementById(id);
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const matchName = `${teamNames.home}_vs_${teamNames.away}`.replace(/\s+/g, '_');
+    const dateStr = matchInfo.matchDate || new Date().toISOString().slice(0, 10);
+    link.download = `VolleyData_Report_${matchName}_${dateStr}.html`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const OLD_handleExportPDF = () => {
     // Show generating loading overlay
     const loadingEl = document.createElement('div');
     loadingEl.style.position = 'fixed';
