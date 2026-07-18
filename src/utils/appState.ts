@@ -70,3 +70,23 @@ export const parseStoredJson = <T,>(value: string | null, fallback: T): T => {
     return fallback;
   }
 };
+
+// Advances a 6-player lineup one position clockwise after a side-out (R1 -> R6 -> ... -> R2 -> R1).
+export const rotateLineup = (rotation: string[]): string[] => {
+  if (!Array.isArray(rotation) || rotation.length !== 6) return rotation;
+  return [rotation[1], rotation[2], rotation[3], rotation[4], rotation[5], rotation[0]];
+};
+
+// Exact inverse of rotateLineup, used when undoing a point that triggered a side-out rotation.
+export const unrotateLineup = (rotation: string[]): string[] => {
+  if (!Array.isArray(rotation) || rotation.length !== 6) return rotation;
+  return [rotation[5], rotation[0], rotation[1], rotation[2], rotation[3], rotation[4]];
+};
+
+// FIVB rally-point scoring: first to 25 (15 in the deciding 5th set) with a 2-point lead wins the set.
+export const checkSetEnd = (homeScore: number, awayScore: number, currentSet: number): 'home' | 'away' | null => {
+  const targetScore = currentSet === 5 ? 15 : 25;
+  if (homeScore >= targetScore && homeScore - awayScore >= 2) return 'home';
+  if (awayScore >= targetScore && awayScore - homeScore >= 2) return 'away';
+  return null;
+};

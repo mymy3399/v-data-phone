@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { io } from 'socket.io-client';
 import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './translations';
-import { getSetterZone, parseStoredJson } from './utils/appState';
+import { getSetterZone, parseStoredJson, rotateLineup, unrotateLineup, checkSetEnd } from './utils/appState';
 import {
   ClipboardList, MonitorPlay, Check, X, Undo2, Settings,
   Users, RotateCcw, AlertCircle, BarChart3, Swords, LogIn, Plus, Copy, CloudLightning, Download, BookOpen, ChevronRight, Link2, Trophy, PlayCircle, ChevronLeft,
@@ -5008,13 +5008,6 @@ export default function App() {
     };
   }, [activeRoom]);
 
-  const checkSetEnd = (homeScore, awayScore, currentSet) => {
-    const targetScore = currentSet === 5 ? 15 : 25;
-    if (homeScore >= targetScore && homeScore - awayScore >= 2) return 'home';
-    if (awayScore >= targetScore && awayScore - homeScore >= 2) return 'away';
-    return null;
-  };
-
   useEffect(() => {
     if (matchData.status === 'finished') {
       setSetEndData(null);
@@ -5251,11 +5244,7 @@ export default function App() {
     if (increment > 0) {
       nextServe = team;
       if (prevServe !== null && prevServe !== team) {
-        const currentRot = [...matchData.rotations[team]];
-        newRotations[team] = [
-          currentRot[1], currentRot[2], currentRot[3],
-          currentRot[4], currentRot[5], currentRot[0]
-        ];
+        newRotations[team] = rotateLineup(matchData.rotations[team]);
       }
     }
 
@@ -5385,11 +5374,7 @@ export default function App() {
   };
 
   const rotateTeamClockwise = (team) => {
-    const currentRot = [...matchData.rotations[team]];
-    const nextRot = [
-      currentRot[1], currentRot[2], currentRot[3], 
-      currentRot[4], currentRot[5], currentRot[0]  
-    ];
+    const nextRot = rotateLineup(matchData.rotations[team]);
     const nextState = {
       ...matchData,
       rotations: {
@@ -5485,11 +5470,7 @@ export default function App() {
     let newRotations = { ...matchData.rotations };
 
     if (prevServe !== null && prevServe !== winningTeam) {
-      const currentRot = [...matchData.rotations[winningTeam]];
-      newRotations[winningTeam] = [
-        currentRot[1], currentRot[2], currentRot[3],
-        currentRot[4], currentRot[5], currentRot[0]
-      ];
+      newRotations[winningTeam] = rotateLineup(matchData.rotations[winningTeam]);
     }
 
     const nextState = {
@@ -5581,11 +5562,7 @@ export default function App() {
         }
         
         if (prevServe && prevServe !== winner) {
-          const currentRot = [...nextRotations[winner]];
-          nextRotations[winner] = [
-            currentRot[5], currentRot[0], currentRot[1],
-            currentRot[2], currentRot[3], currentRot[4]
-          ];
+          nextRotations[winner] = unrotateLineup(nextRotations[winner]);
         }
         nextServe = prevServe;
       }
@@ -5868,11 +5845,7 @@ export default function App() {
     let newRotations = { ...matchData.rotations };
 
     if (prevServe !== null && prevServe !== opponent) {
-      const currentRot = [...matchData.rotations[opponent]];
-      newRotations[opponent] = [
-        currentRot[1], currentRot[2], currentRot[3],
-        currentRot[4], currentRot[5], currentRot[0]
-      ];
+      newRotations[opponent] = rotateLineup(matchData.rotations[opponent]);
     }
 
     const nextState = {
