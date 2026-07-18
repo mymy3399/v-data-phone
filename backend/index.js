@@ -293,7 +293,10 @@ app.delete('/api/auth/users/:id', async (req, res) => {
 // 1. Get active match state for a room
 app.get('/api/matches/:roomId', async (req, res) => {
   const { roomId } = req.params;
-  const cleanId = roomId.trim().toUpperCase();
+  const cleanId = typeof roomId === 'string' ? roomId.trim().toUpperCase() : '';
+  if (!cleanId) {
+    return res.status(400).json({ error: 'Invalid room ID' });
+  }
   try {
     const match = await MatchState.findOne({ roomId: cleanId });
     if (!match) {
@@ -308,8 +311,11 @@ app.get('/api/matches/:roomId', async (req, res) => {
 // 2. Initialize active match state
 app.post('/api/matches/:roomId/init', async (req, res) => {
   const { roomId } = req.params;
-  const initialState = req.body;
-  const cleanId = roomId.trim().toUpperCase();
+  const initialState = req.body || {};
+  const cleanId = typeof roomId === 'string' ? roomId.trim().toUpperCase() : '';
+  if (!cleanId) {
+    return res.status(400).json({ error: 'Invalid room ID' });
+  }
   try {
     let match = await MatchState.findOne({ roomId: cleanId });
     if (!match) {
@@ -349,7 +355,10 @@ app.get('/api/rooms', async (req, res) => {
 // 2.6. Delete an active room
 app.delete('/api/rooms/:roomId', async (req, res) => {
   const { roomId } = req.params;
-  const cleanId = roomId.trim().toUpperCase();
+  const cleanId = typeof roomId === 'string' ? roomId.trim().toUpperCase() : '';
+  if (!cleanId) {
+    return res.status(400).json({ error: 'Invalid room ID' });
+  }
   try {
     const result = await MatchState.deleteOne({ roomId: cleanId });
     if (result.deletedCount === 0) {
@@ -377,13 +386,15 @@ io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   socket.on('join_room', (roomId) => {
-    const cleanId = roomId.trim().toUpperCase();
+    const cleanId = typeof roomId === 'string' ? roomId.trim().toUpperCase() : '';
+    if (!cleanId) return;
     socket.join(cleanId);
     console.log(`Socket ${socket.id} joined room ${cleanId}`);
   });
 
   socket.on('update_match', async ({ roomId, matchData }) => {
-    const cleanId = roomId.trim().toUpperCase();
+    const cleanId = typeof roomId === 'string' ? roomId.trim().toUpperCase() : '';
+    if (!cleanId || !matchData || typeof matchData !== 'object') return;
     try {
       // Save to MongoDB
       await MatchState.findOneAndUpdate(

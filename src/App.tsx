@@ -4,6 +4,7 @@ import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './t
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import autoTable from 'jspdf-autotable';
+import { ensureValidMatchData, getSetterZone, parseStoredJson } from './utils/appState';
 import { 
   ClipboardList, MonitorPlay, Check, X, Undo2, Settings, 
   Users, RotateCcw, AlertCircle, BarChart3, Swords, LogIn, Plus, Copy, CloudLightning, Download, BookOpen, ChevronRight, Link2, Trophy, PlayCircle, ChevronLeft,
@@ -109,35 +110,7 @@ const INITIAL_MATCH_STATE = {
   liberoSwaps: { home: {}, away: {} }
 };
 
-const ensureValidMatchData = (state: any) => {
-  if (!state) return INITIAL_MATCH_STATE;
-  return {
-    ...INITIAL_MATCH_STATE,
-    ...state,
-    teamNames: state.teamNames ? { ...INITIAL_MATCH_STATE.teamNames, ...state.teamNames } : INITIAL_MATCH_STATE.teamNames,
-    matchInfo: state.matchInfo ? { ...INITIAL_MATCH_STATE.matchInfo, ...state.matchInfo } : INITIAL_MATCH_STATE.matchInfo,
-    score: state.score ? { ...INITIAL_MATCH_STATE.score, ...state.score } : INITIAL_MATCH_STATE.score,
-    setsWon: state.setsWon ? { ...INITIAL_MATCH_STATE.setsWon, ...state.setsWon } : INITIAL_MATCH_STATE.setsWon,
-    timeouts: state.timeouts ? { ...INITIAL_MATCH_STATE.timeouts, ...state.timeouts } : INITIAL_MATCH_STATE.timeouts,
-    rotations: state.rotations ? {
-      home: state.rotations.home || INITIAL_MATCH_STATE.rotations.home,
-      away: state.rotations.away || INITIAL_MATCH_STATE.rotations.away
-    } : INITIAL_MATCH_STATE.rotations,
-    roster: state.roster ? {
-      home: state.roster.home || INITIAL_MATCH_STATE.roster.home,
-      away: state.roster.away || INITIAL_MATCH_STATE.roster.away
-    } : INITIAL_MATCH_STATE.roster,
-    liberoSwaps: state.liberoSwaps ? { ...INITIAL_MATCH_STATE.liberoSwaps, ...state.liberoSwaps } : INITIAL_MATCH_STATE.liberoSwaps
-  };
-};
-
-const getSetterZone = (rotations, roster) => {
-  if (!rotations || !roster) return null;
-  const setterNum = rotations.find(num => roster[num]?.position === 'S');
-  if (!setterNum) return null;
-  const idx = rotations.indexOf(setterNum);
-  return idx !== -1 ? idx + 1 : null;
-};
+const ensureValidMatchDataLocal = (state: any) => ensureValidMatchData(state, INITIAL_MATCH_STATE);
 
 /* ========================================================================= */
 /* HELPER COMPONENTS                                                         */
@@ -2238,9 +2211,20 @@ function HelpGuideModal({ onClose }) {
       </html>
     `;
 
-    const blob = new Blob([guideContent], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    try {
+      const blob = new Blob([guideContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+      if (newWindow) {
+        newWindow.focus();
+      } else {
+        window.location.href = url;
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (error) {
+      console.error('Failed to export guide:', error);
+      alert(lang === 'en' ? 'Unable to export the guide right now.' : 'ไม่สามารถส่งออกคู่มือได้ในขณะนี้');
+    }
   };
 
   return (
@@ -4125,11 +4109,11 @@ function TrackerView({
   }, [allEventsCombined, selectedSet]);
 
   const calculateStats = (team) => {
-    const teamEvents = filteredEvents.filter(e => e.team === team);
+    const teamEvents = Array.isArray(filteredEvents) ? filteredEvents.filter(e => e?.team === team) : [];
     
     const results = {};
     SKILLS.forEach(skill => {
-      const skillEvents = teamEvents.filter(e => e.skill === skill.id);
+      const skillEvents = teamEvents.filter(e => e?.skill === skill.id);
       const total = skillEvents.length;
       const perfect = skillEvents.filter(e => e.eval === '#').length;
       const good = skillEvents.filter(e => e.eval === '+').length;
@@ -4165,14 +4149,14 @@ function TrackerView({
   const playerStats = useMemo(() => {
     const calculatePlayerStatsForTeam = (teamKey: 'home' | 'away') => {
       const teamRoster = roster[teamKey] || {};
-      const teamEvents = filteredEvents.filter(e => e.team === teamKey);
+      const teamEvents = Array.isArray(filteredEvents) ? filteredEvents.filter(e => e?.team === teamKey) : [];
       
       return Object.entries(teamRoster).map(([num, details]: [string, any]) => {
-        const pEvents = teamEvents.filter(e => e.player === num);
+        const pEvents = teamEvents.filter(e => e?.player === num);
         
         const skillCounts: Record<string, { total: number; perfect: number; good: number; okay: number; poor: number; error: number; blocked: number }> = {};
         SKILLS.forEach(s => {
-          const sEvts = pEvents.filter(e => e.skill === s.id);
+          const sEvts = pEvents.filter(e => e?.skill === s.id);
           skillCounts[s.id] = {
             total: sEvts.length,
             perfect: sEvts.filter(e => e.eval === '#').length,
@@ -4185,8 +4169,8 @@ function TrackerView({
         });
 
         const totalActions = pEvents.length;
-        const successCount = pEvents.filter(e => e.eval === '#' || e.eval === '+').length;
-        const errorCount = pEvents.filter(e => e.eval === '=' || e.eval === '/').length;
+        const successCount = pEvents.filter(e => e?.eval === '#' || e?.eval === '+').length;
+        const errorCount = pEvents.filter(e => e?.eval === '=' || e?.eval === '/').length;
         
         const successRate = totalActions > 0 ? ((successCount / totalActions) * 100).toFixed(0) : '0';
         const errorRate = totalActions > 0 ? ((errorCount / totalActions) * 100).toFixed(0) : '0';
@@ -4258,7 +4242,7 @@ function TrackerView({
     };
 
     filteredEvents.forEach(evt => {
-      if (!evt.endZone || evt.endZone < 1 || evt.endZone > 6) return;
+      if (!evt || !evt.endZone || evt.endZone < 1 || evt.endZone > 6) return;
       
       const isSuccess = evt.eval === '#' || evt.eval === '+';
       const isError = evt.eval === '=' || evt.eval === '/';
@@ -4950,8 +4934,7 @@ export default function App() {
   };
 
   const [user, setUser] = useState<any>(() => {
-    const saved = localStorage.getItem('volley_user');
-    return saved ? JSON.parse(saved) : null;
+    return parseStoredJson(localStorage.getItem('volley_user'), null);
   });
   const [appState, setAppState] = useState(() => {
     const saved = localStorage.getItem('volley_user');
@@ -4973,12 +4956,12 @@ export default function App() {
   const [role, setRole] = useState(ROLES.UNASSIGNED);
   const [roomId, setRoomId] = useState('');
   const [activeRoom, setActiveRoom] = useState(null); 
-  const [matchData, rawSetMatchData] = useState(ensureValidMatchData(INITIAL_MATCH_STATE));
+  const [matchData, rawSetMatchData] = useState(ensureValidMatchDataLocal(INITIAL_MATCH_STATE));
   const setMatchData = (data: any) => {
     if (typeof data === 'function') {
-      rawSetMatchData((prev: any) => ensureValidMatchData(data(prev)));
+      rawSetMatchData((prev: any) => ensureValidMatchDataLocal(data(prev)));
     } else {
-      rawSetMatchData(ensureValidMatchData(data));
+      rawSetMatchData(ensureValidMatchDataLocal(data));
     }
   };
   const [loading, setLoading] = useState(true);
@@ -5129,21 +5112,15 @@ export default function App() {
 
   useEffect(() => {
     const saved = localStorage.getItem('volley_user');
-    if (saved) {
-      try {
-        const parsedUser = JSON.parse(saved);
-        if (parsedUser.expiresAt && new Date() > new Date(parsedUser.expiresAt)) {
-          localStorage.removeItem('volley_user');
-          setUser(null);
-          setAppState('login');
-        } else {
-          setUser(parsedUser);
-          setAppState('setup');
-        }
-      } catch (err) {
+    const parsedUser = parseStoredJson<any | null>(saved, null);
+    if (parsedUser) {
+      if (parsedUser.expiresAt && new Date() > new Date(parsedUser.expiresAt)) {
         localStorage.removeItem('volley_user');
         setUser(null);
         setAppState('login');
+      } else {
+        setUser(parsedUser);
+        setAppState('setup');
       }
     } else {
       setUser(null);
@@ -5167,14 +5144,20 @@ export default function App() {
           password: loginForm.password
         })
       });
-      const data = await res.json();
-      if (res.ok) {
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      if (res.ok && data && typeof data === 'object') {
         localStorage.setItem('volley_user', JSON.stringify(data));
         setUser(data);
         setAppState('setup');
         setLoginForm({ username: '', password: '', error: '' });
       } else {
-        setLoginForm(prev => ({ ...prev, error: data.error || (lang === 'en' ? 'An error occurred during login' : 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ') }));
+        const message = data?.error || (lang === 'en' ? 'An error occurred during login' : 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+        setLoginForm(prev => ({ ...prev, error: message }));
       }
     } catch (err) {
       console.error(err);
@@ -5196,11 +5179,22 @@ export default function App() {
         headers: { 'x-admin-pin': '062026' }
       });
       if (res.ok) {
-        const data = await res.json();
-        setAdminUsers(data);
+        let data: any = [];
+        try {
+          data = await res.json();
+        } catch {
+          data = [];
+        }
+        setAdminUsers(Array.isArray(data) ? data : []);
       } else {
-        const err = await res.json();
-        setAdminPinError(err.error || (lang === 'en' ? 'Access denied' : 'ไม่มีสิทธิ์เข้าถึง'));
+        let errMessage = lang === 'en' ? 'Access denied' : 'ไม่มีสิทธิ์เข้าถึง';
+        try {
+          const err = await res.json();
+          errMessage = err.error || errMessage;
+        } catch {
+          errMessage = errMessage;
+        }
+        setAdminPinError(errMessage);
         setIsAdminUnlocked(false);
       }
     } catch (e) {
@@ -5253,7 +5247,12 @@ export default function App() {
           expiresAt: adminUnlimitedExpiry ? null : adminExpiryDate
         })
       });
-      const data = await res.json();
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
       if (res.ok) {
         setAdminFormSuccess(lang === 'en' ? 'User created successfully' : 'สร้างผู้ใช้สำเร็จ');
         setAdminUsername('');
@@ -5262,7 +5261,7 @@ export default function App() {
         setAdminUnlimitedExpiry(true);
         fetchAdminUsers();
       } else {
-        setAdminFormError(data.error || (lang === 'en' ? 'Failed to create user' : 'เกิดข้อผิดพลาดในการสร้างผู้ใช้'));
+        setAdminFormError(data?.error || (lang === 'en' ? 'Failed to create user' : 'เกิดข้อผิดพลาดในการสร้างผู้ใช้'));
       }
     } catch (err) {
       setAdminFormError(lang === 'en' ? 'Unable to connect to the server' : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
@@ -5279,8 +5278,14 @@ export default function App() {
       if (res.ok) {
         fetchAdminUsers();
       } else {
-        const data = await res.json();
-        alert(data.error || (lang === 'en' ? 'Failed to delete user' : 'ไม่สามารถลบผู้ใช้ได้'));
+        let message = lang === 'en' ? 'Failed to delete user' : 'ไม่สามารถลบผู้ใช้ได้';
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch {
+          message = message;
+        }
+        alert(message);
       }
     } catch (err) {
       alert(lang === 'en' ? 'Unable to connect to the server' : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
@@ -5300,8 +5305,14 @@ export default function App() {
       if (res.ok) {
         fetchAdminUsers();
       } else {
-        const data = await res.json();
-        alert(data.error || (lang === 'en' ? 'Failed to update expiry date' : 'ไม่สามารถอัปเดตวันหมดอายุได้'));
+        let message = lang === 'en' ? 'Failed to update expiry date' : 'ไม่สามารถอัปเดตวันหมดอายุได้';
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch {
+          message = message;
+        }
+        alert(message);
       }
     } catch (err) {
       alert(lang === 'en' ? 'Unable to connect to the server' : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
@@ -5321,8 +5332,14 @@ export default function App() {
       if (res.ok) {
         alert(lang === 'en' ? 'Password changed successfully' : 'เปลี่ยนรหัสผ่านสำเร็จ');
       } else {
-        const data = await res.json();
-        alert(data.error || (lang === 'en' ? 'Failed to change password' : 'ไม่สามารถเปลี่ยนรหัสผ่านได้'));
+        let message = lang === 'en' ? 'Failed to change password' : 'ไม่สามารถเปลี่ยนรหัสผ่านได้';
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch {
+          message = message;
+        }
+        alert(message);
       }
     } catch (err) {
       alert(lang === 'en' ? 'Unable to connect to the server' : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
@@ -5342,8 +5359,14 @@ export default function App() {
       if (res.ok) {
         fetchAdminUsers();
       } else {
-        const data = await res.json();
-        alert(data.error || (lang === 'en' ? 'Failed to modify permissions' : 'ไม่สามารถแก้ไขสิทธิ์ได้'));
+        let message = lang === 'en' ? 'Failed to modify permissions' : 'ไม่สามารถแก้ไขสิทธิ์ได้';
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch {
+          message = message;
+        }
+        alert(message);
       }
     } catch (err) {
       alert(lang === 'en' ? 'Unable to connect to the server' : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
@@ -5659,8 +5682,8 @@ export default function App() {
       }
     }
 
-    const sZoneHome = getSetterZone(matchData.rotations.home, matchData.roster.home);
-    const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
+    const sZoneHome = getSetterZone(matchData.rotations?.home || [], matchData.roster?.home || {});
+    const sZoneAway = getSetterZone(matchData.rotations?.away || [], matchData.roster?.away || {});
 
     let addedEvents = [];
     if (increment > 0) {
@@ -5844,8 +5867,8 @@ export default function App() {
   const handleCommitRallyWithEvents = (rallyEvents, winningTeam) => {
     if (setEndData) return;
     const scoreText = `[${matchData.score.home}-${matchData.score.away}]`;
-    const sZoneHome = getSetterZone(matchData.rotations.home, matchData.roster.home);
-    const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
+    const sZoneHome = getSetterZone(matchData.rotations?.home || [], matchData.roster?.home || {});
+    const sZoneAway = getSetterZone(matchData.rotations?.away || [], matchData.roster?.away || {});
 
     let finalEventsToCommit;
     if (rallyEvents.length === 0) {
@@ -5907,8 +5930,8 @@ export default function App() {
   };
 
   const handleAddEvent = (eventData) => {
-    const sZoneHome = getSetterZone(matchData.rotations.home, matchData.roster.home);
-    const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
+    const sZoneHome = getSetterZone(matchData.rotations?.home || [], matchData.roster?.home || {});
+    const sZoneAway = getSetterZone(matchData.rotations?.away || [], matchData.roster?.away || {});
 
     const newEvent = {
       id: Date.now().toString(),
@@ -6025,15 +6048,18 @@ export default function App() {
   };
 
   const handleUpdateRoster = (team, newRotations, newRoster, customNames = null, newMatchInfo = null) => {
+    const normalizedRotations = Array.isArray(newRotations) && newRotations.length === 6 ? newRotations : [...(matchData.rotations?.[team] || [])];
+    const normalizedRoster = newRoster && typeof newRoster === 'object' ? newRoster : { ...(matchData.roster?.[team] || {}) };
+
     const nextState = {
       ...matchData,
       rotations: {
         ...matchData.rotations,
-        [team]: newRotations
+        [team]: normalizedRotations
       },
       roster: {
         ...matchData.roster,
-        [team]: newRoster
+        [team]: normalizedRoster
       }
     };
     if (customNames) {
@@ -6052,8 +6078,8 @@ export default function App() {
     if (currentTO >= 2) return; 
 
     const textNum = currentTO + 1;
-    const sZoneHome = getSetterZone(matchData.rotations.home, matchData.roster.home);
-    const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
+    const sZoneHome = getSetterZone(matchData.rotations?.home || [], matchData.roster?.home || {});
+    const sZoneAway = getSetterZone(matchData.rotations?.away || [], matchData.roster?.away || {});
 
     const newEvent = {
       id: Date.now().toString(),
@@ -6107,13 +6133,22 @@ export default function App() {
 
   const handleSubstitution = (team, targetNum, subNum) => {
     triggerActionLock();
-    const updatedRot = matchData.rotations[team].map(num => num === targetNum ? subNum : num);
-    const updatedRoster = { ...matchData.roster[team] };
+    const currentRotation = Array.isArray(matchData.rotations?.[team]) ? matchData.rotations[team] : [];
+    if (!currentRotation.length) {
+      alert(lang === 'en' ? 'Rotation data is missing.' : 'ข้อมูลตำแหน่งหมุนไม่ครบ');
+      return;
+    }
+    const updatedRot = currentRotation.map(num => num === targetNum ? subNum : num);
+    const updatedRoster = { ...(matchData.roster?.[team] || {}) };
     if (updatedRoster[targetNum]) updatedRoster[targetNum].isStarter = false;
     if (updatedRoster[subNum]) updatedRoster[subNum].isStarter = true;
 
-    const sZoneHome = getSetterZone(matchData.rotations.home, matchData.roster.home);
-    const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
+    const sZoneHome = team === 'home'
+      ? getSetterZone(updatedRot, updatedRoster)
+      : getSetterZone(matchData.rotations?.home || [], matchData.roster?.home || {});
+    const sZoneAway = team === 'away'
+      ? getSetterZone(updatedRot, updatedRoster)
+      : getSetterZone(matchData.rotations?.away || [], matchData.roster?.away || {});
 
     const newEvent = {
       id: Date.now().toString(),
@@ -6149,7 +6184,12 @@ export default function App() {
 
   const handleLiberoQuickSwap = (team, zoneId) => {
     triggerActionLock();
-    const teamRoster = matchData.roster[team] || {};
+    const teamRoster = matchData.roster?.[team] || {};
+    const currentRotation = Array.isArray(matchData.rotations?.[team]) ? matchData.rotations[team] : [];
+    if (!currentRotation.length) {
+      alert(lang === 'en' ? 'Rotation data is missing.' : 'ข้อมูลหมุนตำแหน่งไม่ครบ');
+      return;
+    }
     const liberoEntry = Object.entries(teamRoster).find(([_, details]) => (details as any).position === 'L');
     if (!liberoEntry) {
       alert(lang === 'en' 
@@ -6160,10 +6200,10 @@ export default function App() {
     const liberoNum = liberoEntry[0];
     
     const idx = zoneId - 1;
-    const currentPlayer = matchData.rotations[team][idx];
+    const currentPlayer = currentRotation[idx];
     const isCurrentLibero = currentPlayer === liberoNum;
     
-    let updatedRot = [...matchData.rotations[team]];
+    let updatedRot = [...currentRotation];
     let updatedSwaps = { ...(matchData.liberoSwaps || {}) };
     if (!updatedSwaps[team]) updatedSwaps[team] = {};
     
@@ -6176,7 +6216,7 @@ export default function App() {
       updatedRot[idx] = originalPlayer;
       updatedSwaps[team][zoneId] = null;
     } else {
-      const liberoIndex = matchData.rotations[team].indexOf(liberoNum);
+      const liberoIndex = currentRotation.indexOf(liberoNum);
       if (liberoIndex !== -1) {
         alert(lang === 'en' 
           ? `Libero is already on court in Position ${liberoIndex + 1}` 
@@ -6187,8 +6227,12 @@ export default function App() {
       updatedRot[idx] = liberoNum;
     }
 
-    const sZoneHome = getSetterZone(updatedRot, matchData.roster.home);
-    const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
+    const sZoneHome = team === 'home' 
+      ? getSetterZone(updatedRot, matchData.roster?.home || {}) 
+      : getSetterZone(matchData.rotations?.home || [], matchData.roster?.home || {});
+    const sZoneAway = team === 'away' 
+      ? getSetterZone(updatedRot, matchData.roster?.away || {}) 
+      : getSetterZone(matchData.rotations?.away || [], matchData.roster?.away || {});
 
     const newEvent = {
       id: Date.now().toString(),
@@ -6221,8 +6265,8 @@ export default function App() {
 
   const handleFoul = (team, foulType) => {
     triggerActionLock();
-    const sZoneHome = getSetterZone(matchData.rotations.home, matchData.roster.home);
-    const sZoneAway = getSetterZone(matchData.rotations.away, matchData.roster.away);
+    const sZoneHome = getSetterZone(matchData.rotations?.home || [], matchData.roster?.home || {});
+    const sZoneAway = getSetterZone(matchData.rotations?.away || [], matchData.roster?.away || {});
     const opponent = team === 'home' ? 'away' : 'home';
     const newScore = Math.max(0, matchData.score[opponent] + 1);
 
@@ -7309,12 +7353,12 @@ export default function App() {
 
       {isSetupModalOpen && (
         <PlayerSetupModal 
-          team={role === ROLES.COACH ? 'home' : role} 
-          currentRotations={matchData.rotations[role === ROLES.COACH ? 'home' : role]} 
-          currentRoster={matchData.roster[role === ROLES.COACH ? 'home' : role]}
+          team={role === ROLES.COACH || !matchData.rotations?.[role] ? 'home' : role} 
+          currentRotations={matchData.rotations?.[role === ROLES.COACH || !matchData.rotations?.[role] ? 'home' : role] || []} 
+          currentRoster={matchData.roster?.[role === ROLES.COACH || !matchData.rotations?.[role] ? 'home' : role] || {}}
           currentTeamNames={matchData.teamNames || { home: "HOME", away: "AWAY" }}
           currentMatchInfo={matchData.matchInfo}
-          onSave={(newRots, newRoster, names, newMatchInfo) => handleUpdateRoster(role === ROLES.COACH ? 'home' : role, newRots, newRoster, names, newMatchInfo)}
+          onSave={(newRots, newRoster, names, newMatchInfo) => handleUpdateRoster(role === ROLES.COACH || !matchData.rotations?.[role] ? 'home' : role, newRots, newRoster, names, newMatchInfo)}
           onClose={() => setIsSetupModalOpen(false)} 
         />
       )}
