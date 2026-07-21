@@ -4,10 +4,6 @@ const config: CapacitorConfig = {
   appId: 'uk.praj.vdata',
   appName: 'VolleyData Pro',
   webDir: 'dist',
-  server: {
-    url: 'https://v-data.praj.uk',
-    cleartext: false
-  },
   android: {
     allowMixedContent: false
   }

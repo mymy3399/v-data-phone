@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { io } from 'socket.io-client';
+import { Capacitor } from '@capacitor/core';
 import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './translations';
 import { getSetterZone, parseStoredJson, rotateLineup, unrotateLineup, checkSetEnd, computeRotationStats } from './utils/appState';
 import {
@@ -18,7 +19,7 @@ import RotPlayer from './components/RotPlayer';
 import ScoreBoard from './components/ScoreBoard';
 import VolleyballIcon from './components/VolleyballIcon';
 
-const BACKEND_URL = '';
+const BACKEND_URL = Capacitor.isNativePlatform() ? 'https://v-data.praj.uk' : '';
 const socket = io(BACKEND_URL, { autoConnect: false });
 
 /* ========================================================================= */
@@ -4542,7 +4543,8 @@ export default function App() {
 
   const [role, setRole] = useState(ROLES.UNASSIGNED);
   const [roomId, setRoomId] = useState('');
-  const [activeRoom, setActiveRoom] = useState(null); 
+  const [activeRoom, setActiveRoom] = useState(null);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'pending' | 'offline'>('synced');
   const [matchData, rawSetMatchData] = useState(ensureValidMatchDataLocal(INITIAL_MATCH_STATE));
   const setMatchData = (data: any) => {
     if (typeof data === 'function') {
@@ -4998,26 +5000,67 @@ export default function App() {
 
     loadMatch();
 
+    const isScout = role === ROLES.HOME || role === ROLES.AWAY;
+
+    // Re-push any locally queued but not-yet-acknowledged match state (covers both a
+    // brief reconnect and the app having been force-killed while offline, since the
+    // pending flag + backup live in localStorage rather than in-memory socket state).
+    const flushPending = () => {
+      if (!isScout) return;
+      const pendingFlag = localStorage.getItem(`pendingSync_${activeRoom}`);
+      if (!pendingFlag) { setSyncStatus('synced'); return; }
+      const backup = localStorage.getItem(`local_match_backup_${activeRoom}`);
+      if (!backup) { localStorage.removeItem(`pendingSync_${activeRoom}`); return; }
+      let parsed;
+      try {
+        parsed = JSON.parse(backup);
+      } catch {
+        localStorage.removeItem(`pendingSync_${activeRoom}`);
+        return;
+      }
+      setSyncStatus('syncing');
+      socket.emit('update_match', { roomId: activeRoom, matchData: parsed }, (res: { ok: boolean }) => {
+        if (res?.ok) {
+          localStorage.removeItem(`pendingSync_${activeRoom}`);
+          setSyncStatus('synced');
+        } else {
+          setSyncStatus('pending');
+          setTimeout(flushPending, 3000);
+        }
+      });
+    };
+
     // Connect to Socket.io and join the room
     socket.connect();
     socket.emit('join_room', activeRoom);
 
-    // Re-join the room automatically if the socket reconnects after a signal drop
-    socket.on('connect', () => {
+    const handleConnect = () => {
+      // Re-join the room automatically if the socket reconnects after a signal drop
       socket.emit('join_room', activeRoom);
-    });
+      flushPending();
+    };
+    const handleDisconnect = () => {
+      if (isScout) setSyncStatus('offline');
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
 
     // Listen to real-time updates from other clients
     socket.on('match_updated', (updatedData) => {
       setMatchData(updatedData);
     });
 
+    // Catch a leftover pending sync from a previous session (e.g. app was killed while offline)
+    flushPending();
+
     return () => {
-      socket.off('connect');
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
       socket.off('match_updated');
       socket.disconnect();
     };
-  }, [activeRoom]);
+  }, [activeRoom, role]);
 
   useEffect(() => {
     if (matchData.status === 'finished') {
@@ -5173,10 +5216,19 @@ export default function App() {
     if (activeRoom) {
       try {
         localStorage.setItem(`local_match_backup_${activeRoom}`, JSON.stringify(finalState));
+        localStorage.setItem(`pendingSync_${activeRoom}`, '1');
       } catch (err) {
         console.error('Error writing match backup to localStorage:', err);
       }
-      socket.emit('update_match', { roomId: activeRoom, matchData: finalState });
+      setSyncStatus('syncing');
+      socket.emit('update_match', { roomId: activeRoom, matchData: finalState }, (res: { ok: boolean }) => {
+        if (res?.ok) {
+          try { localStorage.removeItem(`pendingSync_${activeRoom}`); } catch {}
+          setSyncStatus('synced');
+        } else {
+          setSyncStatus('pending');
+        }
+      });
     }
   };
 
@@ -6688,6 +6740,15 @@ export default function App() {
           <span className="hidden sm:inline-block text-[10px] bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-md border border-emerald-500/20 font-mono tracking-widest ml-2 shadow-inner">
             LIVE: {activeRoom}
           </span>
+          {(role === ROLES.HOME || role === ROLES.AWAY) && (
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-md border font-mono tracking-widest ml-1 shadow-inner ${
+              syncStatus === 'offline' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse' :
+              (syncStatus === 'pending' || syncStatus === 'syncing') ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+              'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            }`}>
+              {syncStatus === 'offline' ? 'OFFLINE' : (syncStatus === 'pending' || syncStatus === 'syncing') ? 'SYNCING…' : 'SYNCED'}
+            </span>
+          )}
         </div>
         
         <div className="flex gap-1.5 sm:gap-2 items-center">

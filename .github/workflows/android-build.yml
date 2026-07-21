@@ -31,6 +31,13 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Generate Android icons & splash
+        run: |
+          mkdir -p assets
+          cp public/logo.png assets/icon.png
+          cp public/logo.png assets/splash.png
+          npx @capacitor/assets generate --android
+
       - name: Sync Capacitor Android project
         run: npx cap sync android
 

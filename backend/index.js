@@ -418,9 +418,12 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined room ${cleanId}`);
   });
 
-  socket.on('update_match', async ({ roomId, matchData }) => {
+  socket.on('update_match', async ({ roomId, matchData }, ack) => {
     const cleanId = typeof roomId === 'string' ? roomId.trim().toUpperCase() : '';
-    if (!cleanId || !matchData || typeof matchData !== 'object') return;
+    if (!cleanId || !matchData || typeof matchData !== 'object') {
+      if (typeof ack === 'function') ack({ ok: false, error: 'invalid_payload' });
+      return;
+    }
     try {
       // Save to MongoDB
       await MatchState.findOneAndUpdate(
@@ -430,8 +433,10 @@ io.on('connection', (socket) => {
       );
       // Broadcast to other clients in the same room
       socket.to(cleanId).emit('match_updated', matchData);
+      if (typeof ack === 'function') ack({ ok: true });
     } catch (error) {
       console.error('Error updating match state in MongoDB:', error);
+      if (typeof ack === 'function') ack({ ok: false, error: error.message });
     }
   });
 
