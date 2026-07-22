@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Sarabun', 'sans-serif'],
+        sans: ['Prompt', 'sans-serif'],
       },
       colors: {
         slate: {

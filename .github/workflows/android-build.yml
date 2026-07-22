@@ -7,6 +7,8 @@ on:
       - 'src/**'
       - 'android/**'
       - 'public/**'
+      - 'index.html'
+      - 'tailwind.config.js'
       - 'capacitor.config.ts'
       - 'package.json'
       - 'package-lock.json'
