@@ -848,18 +848,55 @@ function LobbyScreen({ roomId, setRoomId, onCreateRoom, onJoinRoom, error, user,
   };
 
 
+  // Rooms created while offline never reach the server, so they'd never show up
+  // in a server-only room list. Reconstruct a summary for each one still pending
+  // sync from its localStorage backup and merge it in below.
+  const getPendingLocalRooms = (): any[] => {
+    const pending: any[] = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith('pendingSync_')) continue;
+        const roomId = key.slice('pendingSync_'.length);
+        const backup = parseStoredJson<any>(localStorage.getItem(`local_match_backup_${roomId}`), null);
+        if (!backup) continue;
+        pending.push({
+          roomId,
+          teamNames: backup.teamNames,
+          score: backup.score,
+          status: backup.status,
+          updatedAt: Date.now(),
+          pendingSync: true
+        });
+      }
+    } catch (err) {
+      console.error('Error reading pending local rooms:', err);
+    }
+    return pending;
+  };
+
   const fetchRooms = async () => {
     setLoadingRooms(true);
+    let serverRooms: any[] = [];
     try {
       const usernameParam = user?.username ? `?username=${encodeURIComponent(user.username)}` : '';
       const res = await fetch(`${BACKEND_URL}/api/rooms${usernameParam}`);
       if (res.ok) {
-        const data = await res.json();
-        setRooms(data);
+        serverRooms = await res.json();
       }
     } catch (e) {
       console.error('Error fetching rooms:', e);
     }
+    const merged = [...serverRooms];
+    getPendingLocalRooms().forEach((localRoom) => {
+      const idx = merged.findIndex((r) => r.roomId === localRoom.roomId);
+      if (idx >= 0) {
+        merged[idx] = { ...merged[idx], pendingSync: true };
+      } else {
+        merged.push(localRoom);
+      }
+    });
+    setRooms(merged);
     setLoadingRooms(false);
   };
 
@@ -1114,16 +1151,23 @@ function LobbyScreen({ roomId, setRoomId, onCreateRoom, onJoinRoom, error, user,
                         <span className="font-mono font-black text-sm text-white uppercase group-hover:text-indigo-400 transition-colors truncate">
                           {room.roomId}
                         </span>
-                        {room.status === 'finished' ? (
-                          <span className="text-[9px] bg-slate-800/90 text-slate-400 px-2 py-0.5 rounded-md leading-none border border-slate-700 font-bold uppercase shrink-0">
-                            FINISHED
-                          </span>
-                        ) : (
-                          <span className="text-[9px] bg-emerald-950/90 text-emerald-400 px-2 py-0.5 rounded-md leading-none border border-emerald-800/60 font-bold uppercase animate-pulse shrink-0 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                            LIVE
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {room.pendingSync && (
+                            <span className="text-[9px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-md leading-none border border-amber-500/20 font-bold uppercase">
+                              {lang === 'th' ? 'รอซิงค์' : 'PENDING SYNC'}
+                            </span>
+                          )}
+                          {room.status === 'finished' ? (
+                            <span className="text-[9px] bg-slate-800/90 text-slate-400 px-2 py-0.5 rounded-md leading-none border border-slate-700 font-bold uppercase">
+                              FINISHED
+                            </span>
+                          ) : (
+                            <span className="text-[9px] bg-emerald-950/90 text-emerald-400 px-2 py-0.5 rounded-md leading-none border border-emerald-800/60 font-bold uppercase animate-pulse flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                              LIVE
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Scoreboard block */}
@@ -1196,6 +1240,11 @@ function LobbyScreen({ roomId, setRoomId, onCreateRoom, onJoinRoom, error, user,
                         <span className="font-mono font-black text-sm text-white uppercase group-hover:text-indigo-400 transition-colors truncate">
                           {room.roomId}
                         </span>
+                        {room.pendingSync && (
+                          <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded leading-none border border-amber-500/20 font-bold uppercase shrink-0">
+                            {lang === 'th' ? 'รอซิงค์' : 'PENDING SYNC'}
+                          </span>
+                        )}
                         {room.status === 'finished' ? (
                           <span className="text-[8px] bg-slate-800/80 text-slate-400 px-2 py-0.5 rounded leading-none border border-slate-700 font-bold uppercase shrink-0">
                             FINISHED
