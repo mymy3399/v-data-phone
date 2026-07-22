@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { io } from 'socket.io-client';
 import { Capacitor } from '@capacitor/core';
+import bcrypt from 'bcryptjs';
 import { translations, getLocalizedSkillLabel, getLocalizedEvalLabel } from './translations';
 import { getSetterZone, parseStoredJson, rotateLineup, unrotateLineup, checkSetEnd, computeRotationStats } from './utils/appState';
 import {
@@ -21,6 +22,40 @@ import VolleyballIcon from './components/VolleyballIcon';
 
 const BACKEND_URL = Capacitor.isNativePlatform() ? 'https://v-data.praj.uk' : '';
 const socket = io(BACKEND_URL, { autoConnect: false });
+
+// How long a device may authenticate a user purely from its local credential
+// cache before requiring a fresh online login (bounds exposure if a tablet is lost).
+const OFFLINE_LOGIN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const offlineCredKey = (username: string) => `volley_offline_cred_${username.trim().toLowerCase()}`;
+
+// Called after every successful online login so the device can authenticate this
+// user again later even with no network. Only a bcrypt hash of the password is
+// stored, never the password itself.
+const cacheOfflineCredential = (username: string, password: string, profile: any) => {
+  try {
+    const passwordHash = bcrypt.hashSync(password, 10);
+    localStorage.setItem(offlineCredKey(username), JSON.stringify({ passwordHash, profile, cachedAt: Date.now() }));
+  } catch (err) {
+    console.error('Error caching offline credential:', err);
+  }
+};
+
+// Verifies a login attempt against the locally cached credential, used only when
+// the server can't be reached. Returns the last-known-good user profile on success.
+const tryOfflineLogin = (username: string, password: string): any | null => {
+  try {
+    const raw = localStorage.getItem(offlineCredKey(username));
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached?.passwordHash || !cached?.profile) return null;
+    if (Date.now() - cached.cachedAt > OFFLINE_LOGIN_MAX_AGE_MS) return null;
+    if (cached.profile.expiresAt && new Date() > new Date(cached.profile.expiresAt)) return null;
+    if (!bcrypt.compareSync(password, cached.passwordHash)) return null;
+    return cached.profile;
+  } catch {
+    return null;
+  }
+};
 
 /* ========================================================================= */
 /* HELPER COMPONENTS                                                         */
@@ -4742,6 +4777,7 @@ export default function App() {
       }
       if (res.ok && data && typeof data === 'object') {
         localStorage.setItem('volley_user', JSON.stringify(data));
+        cacheOfflineCredential(loginForm.username, loginForm.password, data);
         setUser(data);
         setAppState('setup');
         setLoginForm({ username: '', password: '', error: '' });
@@ -4751,7 +4787,15 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-      setLoginForm(prev => ({ ...prev, error: lang === 'en' ? 'Unable to connect to the server' : 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้' }));
+      const offlineProfile = tryOfflineLogin(loginForm.username, loginForm.password);
+      if (offlineProfile) {
+        localStorage.setItem('volley_user', JSON.stringify(offlineProfile));
+        setUser(offlineProfile);
+        setAppState('setup');
+        setLoginForm({ username: '', password: '', error: '' });
+      } else {
+        setLoginForm(prev => ({ ...prev, error: lang === 'en' ? 'Unable to connect to the server' : 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้' }));
+      }
     }
   };
 
@@ -5240,14 +5284,12 @@ export default function App() {
       return;
     }
     setLoading(true);
+    const localInitialState = { ...INITIAL_MATCH_STATE, createdBy: user.username };
     try {
       const res = await fetch(`${BACKEND_URL}/api/matches/${cleanId}/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...INITIAL_MATCH_STATE,
-          createdBy: user.username
-        })
+        body: JSON.stringify(localInitialState)
       });
       if (res.ok) {
         setActiveRoom(cleanId);
@@ -5256,8 +5298,17 @@ export default function App() {
         setLobbyError(lang === 'en' ? 'Unable to create this room' : 'ไม่สามารถสร้างห้องนี้ได้');
       }
     } catch (e) {
+      // No network reachable — create the room locally; it syncs to the server
+      // (via the same upsert the socket flush uses) once back online.
       console.error(e);
-      setLobbyError(lang === 'en' ? 'Error creating room, please try another code' : 'เกิดข้อผิดพลาดในการสร้างห้อง โปรดลองรหัสอื่น');
+      try {
+        localStorage.setItem(`local_match_backup_${cleanId}`, JSON.stringify(localInitialState));
+        localStorage.setItem(`pendingSync_${cleanId}`, '1');
+      } catch (storageErr) {
+        console.error('Error writing offline room backup:', storageErr);
+      }
+      setActiveRoom(cleanId);
+      setLobbyError('');
     }
     setLoading(false);
   };
@@ -5281,7 +5332,15 @@ export default function App() {
       }
     } catch (e) {
       console.error(e);
-      setLobbyError(lang === 'en' ? 'Unable to connect to server to join room' : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อเข้าร่วมห้องได้');
+      // No network reachable — allow resuming a room this device already has a
+      // local backup for (e.g. the app was killed while scouting offline).
+      const backup = localStorage.getItem(`local_match_backup_${cleanId}`);
+      if (backup) {
+        setActiveRoom(cleanId);
+        setLobbyError('');
+      } else {
+        setLobbyError(lang === 'en' ? 'Unable to connect to server to join room' : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อเข้าร่วมห้องได้');
+      }
     }
     setLoading(false);
   };
